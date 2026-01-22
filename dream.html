@@ -1267,14 +1267,14 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                                 <p className="font-bold text-dream-navy border-b pb-2 bg-white">
                                     ✂️ 美容服務 簽署聲明與法律約定
                                 </p>
-                                <ol className="list-decimal pl-5 space-y-3 marker:text-dream-gold marker:font-bold pb-4">
-                                    <li>第一條(契約目的): 本服務為犬貓美容，不涉及醫療行為;乙方須維持環境安全、通風及清潔。</li>
-                                    <li>第五條(健康告知): 甲方應誠實告知寵物病史與是否具有攻擊性。若因隱瞞導致意外，乙方不負責損害賠償責任；因隱瞞導致乙方人員傷亡、財損等相關損失，乙方將全額向甲方(飼主寵物所有權人)求償。</li>
-                                    <li>第九條(退費規定): 包月服務終止時，預收總額扣除(已使用次數X單次原價)後退費，乙方不額外收取解約手續費。</li>
-                                    <li>第十二條(逾時接回): 飼主應於洗澡美容當日將寵物領回，若於約定時間內未領回，依照價目表公告之安親費額外收費，打烊時仍未接回依照價目表公告之住宿房型收費，房價則依照當日住宿狀況安排，滾動式調整。如經通知三日內未領回，將依照動保法第29條第一款通知主管機關，其餘衍生之費用將由飼主全額支付。</li>
-                                    <li>第十五條(履約保障):預收費用累積金額新台幣一萬元以下，依法免提供履約保障。</li>
+<ol className="list-decimal pl-5 space-y-3 marker:text-dream-gold marker:font-bold pb-4">
+                                    <li><strong>第一條(契約目的)：</strong>本服務為犬貓美容，<span className="text-dream-red font-bold underline">不涉及醫療行為</span>。</li>
+                                    <li><strong>第五條(健康告知)：</strong>甲方應<span className="font-bold underline">誠實告知</span>寵物病史與是否具有攻擊性。若因隱瞞導致意外，<span className="text-dream-red font-bold">乙方不負責損害賠償責任</span>；因隱瞞導致乙方人員傷亡、財損等損失，<span className="text-dream-red font-bold underline">乙方將全額向甲方求償</span>。</li>
+                                    <li><strong>第九條(退費規定)：</strong>包月服務終止時，預收總額扣除(<span className="font-bold text-dream-navy">已使用次數 X 單次原價</span>)後退費。</li>
+                                    <li><strong>第十二條(逾時接回)：</strong>若於約定時間內未領回，<span className="text-dream-red font-bold">加收安親費</span>；打烊時仍未接回，則<span className="text-dream-red font-bold">視同住宿一晚計費</span>。如經通知三日內未領回，將依照<span className="font-bold underline">動保法第29條</span>移交主管機關。</li>
+                                    <li><strong>第十五條(履約保障)：</strong>預收費用累積金額新台幣一萬元以下，依法免提供履約保障。</li>
                                     <li>其餘細節將依照行政院農委會定型化契約範本辦理。</li>
-                                    <li>因本契約所產生之訴訟，雙方合意將以桃園地方法院為第一審管轄法院。</li>
+                                    <li>因本契約所產生之訴訟，雙方合意將以<span className="font-bold">桃園地方法院</span>為第一審管轄法院。</li>
                                 </ol>
                             </div>
                         )}
@@ -1297,18 +1297,18 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                                             <p>• 凡超過每日打烊時間 19:00 仍未接回者，不論原服務項目為何（含安親、美容、洗澡或住宿），均視同於本旅館「住宿一晚」，並依現場公告之住宿費率計費。</p>
                                         </div>
                                     </li>
-                                    <li>住宿期間，請自備飼料，無自備飼料將依照店內提供之飼料為優先；若因換食造成腸胃不適、軟便或腹瀉等症狀，旅館將不負責賠償。</li>
-                                    <li>住宿當日須於本館美容部完成洗護後，方可辦理入住；住宿洗澡費用另計，期間若發現有跳蚤、壁蝨等傳染性蟲蚤，將額外收取除蟲蚤費用及環境清潔費。</li>
-                                    <li>住宿當日飼主需提供身分證件(供本館影印留存)及毛孩預防針手冊備查。</li>
-                                    <li>飼主應於契約終止時將毛孩帶回，逾期三日聯繫不上飼主，將會依照動物保護法第29條第一款將動物交付動保處保管；逾期日期之住宿費用將由飼主全額支付。</li>
-                                    <li>住宿、洗澡、美容、安親期間，飼主若隱瞞毛孩曾有攻擊行為，造成本館人員或毛孩傷亡或財物毀損，所有衍生費用本館有權利向飼主全額求償。</li>
-                                    <li>住宿、洗澡、美容、安親期間，發生寵物吠叫聲持續不止，影響到店內營運及周邊鄰居安寧時，本館將會電話聯繫飼主及緊急連絡人將毛孩帶回。</li>
-                                    <li>住宿期間，如發生身體不適、持續性下痢、或其他疾病，須立即送醫治療，本館將會電話聯繫飼主及緊急連絡人將毛孩帶回；若飼主或緊急連絡人同意由本館人員先將動物送醫治療，若無指定的醫院或病況危急將送往周邊之安欣動物醫院治療，其治療之相關費用將由飼主全額負擔。</li>
-                                    <li>住宿、洗澡、美容、安親期間，飼主須如實告知毛孩身體狀況，若隱瞞病況，造成動物發生意外或死亡，經醫院判定本館無任何疏失行為或毛孩本身具有心臟病、癲癇、氣喘、過敏、慢性疾病及各犬種本身好發之疾病等高度危險疾病者，本館將不負責任何賠償相關事宜。</li>
-                                    <li>住宿、洗澡、美容、安親期間，若發生毛孩走失或人為因素導致受傷或死亡，本館將依法合理賠償，上限30,000元整；毛孩在放風期間因彼此玩耍導致的小傷痕則不在此限內。</li>
-                                    <li>住宿、洗澡、美容、安親期間，店內物品遭到毛孩破壞，如攝影機$3000/台、房間隔間、相關開放物品等，本館有權利向飼主全額求償。</li>
-                                    <li>寵物因年老體虛或本身既有疾病死亡，飼主或緊急連絡人須在接到通知24小時內領回寵物，超過時間未領回則由本館全權處理，所衍生之費用由飼主全額負擔。如對寵物死亡原因有疑慮，飼主或緊急聯絡人須在24小時內會同至本館指定之動物醫院做鑑定，如無法在24小時內會同做鑑定，則飼主不得有異議。(以通聯記錄為準)。</li>
-                                    <li>有散步需求之寵物，散步時本館會善盡保護之責，若寵物因掙脫牽繩而導致逃跑、受傷、死亡等，本館將不負責任何賠償相關事宜。</li>
+<li>住宿期間請<span className="font-bold underline">自備飼料</span>。若無自備而由店內提供，導致換食腸胃不適（如軟便、腹瀉），<span className="text-dream-red font-bold">旅館恕不負責賠償</span>。</li>
+                                    <li>入住當日需完成本館<span className="font-bold underline">美容部洗護</span>（費用另計）。若發現寄生蟲，將<span className="text-dream-red font-bold">額外收取除蟲及環境清潔費</span>。</li>
+                                    <li>請提供<span className="font-bold underline">身分證件影本</span>及毛孩預防針手冊備查。</li>
+                                    <li>逾期三日聯繫不上飼主，將依<span className="font-bold underline">動保法</span>交付動保處，衍生費用由<span className="text-dream-red font-bold underline">飼主全額支付</span>。</li>
+                                    <li>若隱瞞攻擊行為導致傷亡或財損，<span className="text-dream-red font-bold">本館有權向飼主全額求償</span>。</li>
+                                    <li>若寵物持續吠叫影響營運或安寧，本館將聯繫飼主或緊急聯絡人<span className="text-dream-red font-bold underline">先行帶回</span>。</li>
+                                    <li>突發疾病須送醫時，相關<span className="text-dream-red font-bold underline">醫療及交通費用由飼主全額負擔</span>。</li>
+                                    <li>隱瞞病況或本身具有高風險疾病（心臟病、癲癇等），若發生意外或死亡，經判定本館無疏失，<span className="text-dream-red font-bold">本館不負責賠償責任</span>。</li>
+                                    <li>若因人為疏失導致走失、傷亡，本館依法賠償，<span className="text-dream-red font-bold underline">賠償上限為新台幣 30,000 元整</span>（玩耍小傷痕除外）。</li>
+                                    <li>若店內物品（攝影機、房間隔間等）遭到破壞，<span className="text-dream-red font-bold">本館有權向飼主全額求償</span>。</li>
+                                    <li>寵物若因年老或舊疾死亡，請於 24 小時內領回。若需鑑定死因請於 24 小時內會同辦理，<span className="font-bold underline">逾期不得異議</span>。</li>
+                                    <li>散步時若因寵物掙脫牽繩導致逃跑或傷亡，<span className="text-dream-red font-bold">本館不負責相關賠償事宜</span>。</li>
                                     <li>其餘細節將依照行政院農委會定型化契約範本辦理。</li>
                                     <li>本同意書一式兩份，由飼主與本館各執乙份。因本契約所產生之訴訟，雙方合意將以桃園地方法院為第一審管轄法院。</li>
                                 </ol>
@@ -1344,9 +1344,9 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                                     <h4 className="font-bold text-dream-navy border-b pb-1">一、飼主誠實告知義務</h4>
                                     <p>本人（甲方）確認，已就本人所知悉之寵物年齡、過往病史（如心臟病、癲癇、氣喘、關節問題等）、近期手術或治療紀錄、懷孕狀況、過敏反應，以及行為特性（如咬人紀錄、特定部位敏感、抗拒保定等），向 貴店（乙方）為完整且真實之說明。如因甲方未告知、未完全告知或提供不實資訊，致乙方於已盡合理專業注意義務之情形下，仍難以預見或防範風險發生者，其相關責任歸屬，雙方同意依實際情形及相關法律規定認定，且須賠償因隱瞞導致服務犬、貓隻人員受傷的相關醫療費用、精神賠償、無法工作損失之費用。</p>
                                 </div>
-                                <div className="space-y-3">
+<div className="space-y-3">
                                     <h4 className="font-bold text-dream-navy border-b pb-1">二、高齡與特殊健康狀況之風險告知</h4>
-                                    <p>本人知悉，若寵物屬於高齡個體、幼齡犬貓，或患有慢性疾病、潛在或隱性疾病者，其體能、心肺功能及對壓力之耐受度，可能低於一般健康寵物。於美容過程中之洗澡、吹整、保定或操作，可能因緊張、興奮或身體負荷，誘發身體不適、休克、舊疾復發，甚或發生其他不可預期之風險。本人已充分理解上述情形，並同意：如經判定該不利結果係源於寵物自身健康狀況或生理反應，且非因乙方之故意或重大過失所致者，乙方不負損害賠償責任。</p>
+                                    <p>本人知悉，高齡、幼齡或患有慢性病之寵物對壓力耐受度較低。美容過程中可能因緊張或體能負荷誘發<span className="text-dream-red font-bold underline">休克、舊疾復發或不可預期之意外</span>。本人同意：若不利結果源於寵物自身狀況且乙方無故意過失，<span className="text-dream-red font-bold">乙方不負損害賠償責任</span>。</p>
                                 </div>
                                 <div className="space-y-3">
                                     <h4 className="font-bold text-dream-navy border-b pb-1">三、攻擊性與行為安全防護同意</h4>
