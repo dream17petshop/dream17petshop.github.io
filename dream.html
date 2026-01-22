@@ -228,8 +228,34 @@ Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke=
             </div>
         ));
 
-        // --- Modal Component ---
-        const Modal = memo(({ isOpen, onClose, title, children, className = "" }) => {
+        // --- Modal Component (修改版：增加滾動到底部才能同意的功能) ---
+        const Modal = memo(({ isOpen, onClose, title, children, onAgree, className = "" }) => {
+            const contentRef = useRef(null);
+            const [canAgree, setCanAgree] = useState(false);
+
+            useEffect(() => {
+                if (isOpen) {
+                    setCanAgree(false);
+                    document.body.style.overflow = 'hidden';
+                    // 初始化檢查，如果內容少於一頁，直接允許同意
+                    setTimeout(() => {
+                        if (contentRef.current && contentRef.current.scrollHeight <= contentRef.current.clientHeight + 10) {
+                            setCanAgree(true);
+                        }
+                    }, 300);
+                } else {
+                    document.body.style.overflow = '';
+                }
+            }, [isOpen]);
+
+            const handleScroll = (e) => {
+                const { scrollTop, scrollHeight, clientHeight } = e.target;
+                // 當滾動到底部附近 (剩餘 50px) 時啟用按鈕
+                if (scrollHeight - scrollTop - clientHeight < 50) {
+                    setCanAgree(true);
+                }
+            };
+
             if (!isOpen) return null;
             
             return (
@@ -239,8 +265,32 @@ Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke=
                             <h3 className="font-bold text-dream-navy">{title}</h3>
                             <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">✕</button>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-6 text-sm text-gray-600 leading-relaxed space-y-4">
+                        <div 
+                            ref={contentRef}
+                            onScroll={handleScroll} 
+                            className="flex-1 overflow-y-auto p-6 text-sm text-gray-600 leading-relaxed space-y-4"
+                        >
                             {children}
+                            {/* 增加底部空間，確保最後一行文字能被滾動到頂部 */}
+                            <div className="h-10"></div>
+                        </div>
+                        <div className="p-6 border-t bg-white shrink-0">
+                            {!canAgree && (
+                                <div className="text-center text-xs font-bold text-dream-gold mb-3 animate-pulse">
+                                    👇 請向下滾動至最底部以同意條款
+                                </div>
+                            )}
+                            <button 
+                                onClick={() => { if(canAgree && onAgree) onAgree(); onClose(); }} 
+                                disabled={!canAgree}
+                                className={`w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all ${
+                                    canAgree 
+                                    ? 'bg-dream-navy text-white shadow-lg hover:bg-[#4A3D35] active:scale-[0.98]' 
+                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                {canAgree ? "我已詳閱並同意" : "請閱讀完畢"}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -742,14 +792,14 @@ Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke=
                         <div>
                             <div className="text-xs font-bold text-gray-400 mb-2 ml-1">加購與升級</div>
                             <div className="grid grid-cols-2 gap-2">
-                                {[
+                                {[...[
                                     {n:'刷牙', p:'$50', note:''}, 
                                     ...(formData.view === 'boarding' ? [{n:'散步', p:'$100', note:'(請自備不會掙脫之胸背牽繩)', isRed: true}] : []),
                                     {n:'牛奶浴', p:'$200起', note:''}, 
                                     {n:'酵素', p:'$200起', note:''},
                                     {n:'修頭', p:'$300起', note:''}, 
                                     {n:'全身手剪', p:'$600起', note:''}
-                                ].map(item => (
+                                ]].map(item => (
                                     <button key={item.n} onClick={()=>toggleArray('service_tags', item.n)} 
                                         className={`flex flex-col items-start p-3 rounded-xl border-2 text-xs font-bold transition-all ${formData.service_tags.includes(item.n) ? 'bg-dream-gold text-white border-dream-gold' : 'bg-white text-gray-600 border-gray-200'}`}>
                                         <div className="flex justify-between w-full">
@@ -1185,6 +1235,9 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                         
                         {/* 消費項目 */}
                         <ServiceSection formData={formData} updateField={updateField} toggleArray={toggleArray} />
+                                            
+                        {/* 付款資訊 */}
+                        <PaymentSection formData={formData} updateField={updateField} />
                         
                         {/* 店家資訊 */}
                         <section className="glass-panel p-6 rounded-[32px] space-y-6">
@@ -1224,10 +1277,8 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                                 </div>
                             </div>
                         </section>
-                        
-                        {/* 付款資訊 */}
-                        <PaymentSection formData={formData} updateField={updateField} />
-                        
+
+
                         {/* 法律條款與簽署 */}
                         <TermsSection 
                             formData={formData} 
@@ -1255,6 +1306,13 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                         isOpen={!!formData.showTermsModal} 
                         onClose={()=>updateField('showTermsModal', false)} 
                         title={formData.showTermsModal === 'boarding' ? '住宿/安親服務條款' : '美容服務契約條款'}
+                        onAgree={() => {
+                            if (formData.showTermsModal === 'grooming') {
+                                updateField('groomingTermsRead', true);
+                            } else if (formData.showTermsModal === 'boarding') {
+                                updateField('boardingTermsRead', true);
+                            }
+                        }}
                     >
                         {/* 頂部警語 */}
                         <div className="p-3 bg-red-50 text-dream-red text-xs font-bold rounded-xl mb-4 border border-red-100">
@@ -1267,7 +1325,7 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                                 <p className="font-bold text-dream-navy border-b pb-2 bg-white">
                                     ✂️ 美容服務 簽署聲明與法律約定
                                 </p>
-<ol className="list-decimal pl-5 space-y-3 marker:text-dream-gold marker:font-bold pb-4">
+                                <ol className="list-decimal pl-5 space-y-3 marker:text-dream-gold marker:font-bold pb-4">
                                     <li><strong>第一條(契約目的)：</strong>本服務為犬貓美容，<span className="text-dream-red font-bold underline">不涉及醫療行為</span>。</li>
                                     <li><strong>第五條(健康告知)：</strong>甲方應<span className="font-bold underline">誠實告知</span>寵物病史與是否具有攻擊性。若因隱瞞導致意外，<span className="text-dream-red font-bold">乙方不負責損害賠償責任</span>；因隱瞞導致乙方人員傷亡、財損等損失，<span className="text-dream-red font-bold underline">乙方將全額向甲方求償</span>。</li>
                                     <li><strong>第九條(退費規定)：</strong>包月服務終止時，預收總額扣除(<span className="font-bold text-dream-navy">已使用次數 X 單次原價</span>)後退費。</li>
@@ -1314,21 +1372,6 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                                 </ol>
                             </div>
                         )}
-                        
-                        <div className="p-5 border-t bg-white sticky bottom-0 z-20 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] -mx-6 -mb-6 mt-4">
-                            <button onClick={() => {
-                                // 根據當前顯示的 Modal 類型，更新對應的已讀狀態
-                                if (formData.showTermsModal === 'grooming') {
-                                    updateField('groomingTermsRead', true);
-                                } else if (formData.showTermsModal === 'boarding') {
-                                    updateField('boardingTermsRead', true);
-                                }
-                                updateField('showTermsModal', false);
-                            }} 
-                                className="w-full py-4 bg-dream-navy text-white font-bold rounded-2xl shadow-lg hover:bg-[#4A3D35] active:scale-[0.98] transition-all">
-                                我已詳閱並同意上述條款
-                            </button>
-                        </div>
                     </Modal>
 
                     {/* 高風險條款模態框 */}
@@ -1337,6 +1380,13 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                         onClose={()=>updateField('showHighRiskModal', null)} 
                         title={`高風險${formData.showHighRiskModal === 'boarding' ? '住宿' : '美容'}服務風險告知暨同意聲明`}
                         className="z-[150]"
+                        onAgree={() => {
+                            if (formData.showHighRiskModal === 'grooming') {
+                                updateField('highRiskGroomingRead', true);
+                            } else if (formData.showHighRiskModal === 'boarding') {
+                                updateField('highRiskBoardingRead', true);
+                            }
+                        }}
                     >
                         {formData.showHighRiskModal === 'grooming' ? (
                             <div className="space-y-6">
@@ -1373,19 +1423,6 @@ const TermsSection = memo(({ formData, updateField, handleStartSignature }) => {
                                 </ul>
                             </div>
                         )}
-                        <div className="p-5 border-t bg-white sticky bottom-0 z-20 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] -mx-6 -mb-6 mt-4">
-                            <button onClick={() => {
-                                if (formData.showHighRiskModal === 'grooming') {
-                                    updateField('highRiskGroomingRead', true);
-                                } else if (formData.showHighRiskModal === 'boarding') {
-                                    updateField('highRiskBoardingRead', true);
-                                }
-                                updateField('showHighRiskModal', null);
-                            }} 
-                                className="w-full py-4 bg-red-500 text-white font-bold rounded-2xl shadow-lg hover:bg-red-600 active:scale-[0.98] transition-all">
-                                我已了解風險並同意簽署
-                            </button>
-                        </div>
                     </Modal>
 
                 </div>
