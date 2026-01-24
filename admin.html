@@ -378,7 +378,7 @@
         const handleLogout = async () => {
             addLog('登出', '使用者登出');
             await state.supabase.auth.signOut();
-            window.location.href = 'dream.html';
+            window.location.href = 'index.html';
         };
 
         // 獲取訂單數據
@@ -773,7 +773,7 @@
                             </form>
                         `}
                         <div class="mt-6 border-t border-white/50 pt-4">
-                            <a href="dream.html" class="w-full py-3 rounded-xl font-bold text-gray-400 hover:text-dream-navy transition-all flex items-center justify-center gap-2 text-sm">
+                            <a href="index.html" class="w-full py-3 rounded-xl font-bold text-gray-400 hover:text-dream-navy transition-all flex items-center justify-center gap-2 text-sm">
                                 <i data-lucide="arrow-left" width="16" height="16"></i> 返回填寫首頁
                             </a>
                         </div>
