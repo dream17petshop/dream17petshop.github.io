@@ -499,8 +499,8 @@
                     <h3 className="font-bold text-dream-navy">飼主基本資料</h3>
                 </div>
                 
-                <InputGroup label="電子郵件" required error={errors?.email} id="email">
-                    <TextInput placeholder="寄送契約副本用" value={formData.email} onChange={e=>updateField('email', e.target.value)} />
+<InputGroup label="電子郵件 (選填)" error={errors?.email} id="email">
+                    <TextInput placeholder="若填寫則自動寄送契約副本" value={formData.email} onChange={e=>updateField('email', e.target.value)} />
                 </InputGroup>
 
                 <div className="grid grid-cols-[1.5fr,1fr] gap-4">
@@ -647,13 +647,13 @@
                     </InputGroup>
                 </div>
 
-                {/* 健康檢查與驅蟲 */}
+{/* 健康檢查與驅蟲 */}
                 <div className="grid grid-cols-2 gap-4">
-                    <InputGroup label="近期健檢" required error={errors?.health_date} id="health_date">
+                    {/* 移除 required */}
+                    <InputGroup label="近期健檢" error={errors?.health_date} id="health_date">
                         <input type="date" className="w-full h-12 px-2 rounded-xl glass-input text-dream-navy font-bold text-xs" 
                             value={formData.health_date} onChange={e=>updateField('health_date', e.target.value)} />
                     </InputGroup>
-
                     <InputGroup label="每月定期驅蟲" required error={errors?.deworming_monthly} id="deworming_monthly">
                         <div className="flex gap-2 h-12">
                             {['是', '否'].map(v => (
@@ -1140,6 +1140,349 @@
 
         const { createClient } = supabase;
         const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+// --- 工具：將 Base64 轉為 Blob 檔案 ---
+        const dataURLtoBlob = (dataurl) => {
+            if(!dataurl) return null;
+            const arr = dataurl.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        };
+// --- 新增：產生合約 HTML (共用函式 - RWD 完整版) ---
+        const generateContractHtml = (data, signatureUrl) => {
+            const BRAND_NAVY = "#5C4D42";
+            const BRAND_GOLD = "#C5A065";
+            const BRAND_RED = "#E05D5D";
+            const BG_CREAM = "#FAF8F5";
+            
+            const isBoarding = data.view === 'boarding';
+            const isHighRisk = checkHighRisk(data); // 使用現有的檢查函式
+
+            // 輔助顯示函式
+            const show = (val) => val || '<span style="color:#ccc;">未填寫</span>';
+            const bool = (val) => val === '是' ? '✅ 是' : '⬜ 否';
+            const arr = (val) => Array.isArray(val) && val.length > 0 ? val.join('、') : '無';
+
+            // 1. 條款內容定義 (直接將 React 中的條款文字轉為 HTML)
+            const groomingTerms = `
+                <ol style="padding-left: 20px; margin: 0;">
+                    <li><strong>第一條(契約目的)：</strong>本服務為犬貓美容，<span style="color:${BRAND_RED}; font-weight:bold; text-decoration:underline;">不涉及醫療行為</span>。</li>
+                    <li><strong>第五條(健康告知)：</strong>甲方應誠實告知寵物病史與是否具有攻擊性。若因隱瞞導致意外，乙方不負責損害賠償責任；因隱瞞導致乙方人員傷亡、財損等損失，乙方將全額向甲方求償。</li>
+                    <li><strong>第九條(退費規定)：</strong>包月服務終止時，預收總額扣除(已使用次數 X 單次原價)後退費。</li>
+                    <li><strong>第十二條(逾時接回)：</strong>若於約定時間內未領回，加收安親費；打烊時仍未接回，則視同住宿一晚計費。如經通知三日內未領回，將依照動保法第29條移交主管機關。</li>
+                    <li><strong>第十五條(履約保障)：</strong>預收費用累積金額新台幣一萬元以下，依法免提供履約保障。</li>
+                    <li>因本契約所產生之訴訟，雙方合意將以<strong>桃園地方法院</strong>為第一審管轄法院。</li>
+                </ol>
+            `;
+
+            const boardingTerms = `
+                <div style="background-color: #FFF0F0; padding: 10px; border: 1px solid ${BRAND_RED}; border-radius: 8px; margin-bottom: 10px; font-weight: bold; color: ${BRAND_RED}; font-size: 11px;">
+                    非24小時照護聲明：本人知悉且同意，本店無提供夜間照顧服務。若寵物於夜間無人時段發生突發狀況，店家可能無法即時發現或處置，本人願意承擔此風險。
+                </div>
+                <ol style="padding-left: 20px; margin: 0;">
+                    <li><strong>計費與進退房：</strong>以「晚」為單位。辦理入住 10:00-18:00，退房於 18:00 前。逾時或打烊未接回將加收費用。</li>
+                    <li><strong>自備飼料：</strong>若無自備而由店內提供導致腸胃不適，旅館恕不負責。</li>
+                    <li><strong>緊急醫療：</strong>突發疾病須送醫時，相關醫療及交通費用由飼主全額負擔。</li>
+                    <li><strong>賠償上限：</strong>若因人為疏失導致走失、傷亡，本館依法賠償，上限為新台幣 30,000 元整。</li>
+                    <li>若店內物品遭到破壞，本館有權向飼主全額求償。</li>
+                </ol>
+            `;
+
+            const highRiskTerms = `
+                <div style="border: 2px dashed ${BRAND_RED}; padding: 10px; margin-top: 10px;">
+                    <h4 style="margin: 0 0 5px 0; color: ${BRAND_RED};">⚠️ 高風險服務同意書</h4>
+                    <p>本人確認已誠實告知寵物病史(心臟病、癲癇、年老等)。知悉美容/住宿過程中可能因緊張誘發休克或意外。若非乙方故意過失，乙方不負損害賠償責任。如發生緊急狀況，同意乙方優先送往指定醫院處置。</p>
+                </div>
+            `;
+
+            // 2. 組合完整 HTML (含 RWD CSS)
+            return `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>夢17 - 服務契約副本</title>
+                    <style>
+                        /* 手機端 RWD 適配 CSS */
+                        @media only screen and (max-width: 600px) {
+                            .main-container { width: 100% !important; margin: 10px 0 !important; border-radius: 0 !important; }
+                            .section-padding { padding: 20px 15px !important; }
+                            
+                            /* 表格強制變為區塊堆疊 */
+                            .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td { 
+                                display: block !important; 
+                                width: 100% !important; 
+                                box-sizing: border-box; 
+                            }
+                            
+                            .responsive-table td { 
+                                border-bottom: 1px solid #eee; 
+                                padding: 10px 0 !important; 
+                                text-align: left !important;
+                            }
+                            
+                            .responsive-table td:last-child { 
+                                border-bottom: none; 
+                            }
+                            
+                            .summary-table td { 
+                                display: block !important; 
+                                width: 100% !important; 
+                                text-align: left !important; 
+                                padding-bottom: 5px !important;
+                            }
+                            
+                            /* 手機版欄位標題顯示 */
+                            .mobile-label { 
+                                font-size: 11px; 
+                                color: #999; 
+                                display: block; 
+                                margin-bottom: 4px; 
+                                font-weight: bold; 
+                                text-transform: uppercase;
+                                letter-spacing: 1px;
+                            }
+                        }
+                        
+                        /* 電腦版隱藏手機標題 */
+                        @media only screen and (min-width: 601px) {
+                            .mobile-label { display: none; }
+                        }
+                    </style>
+                </head>
+                <body style="font-family: sans-serif; line-height: 1.6; color: ${BRAND_NAVY}; background-color: #f4f4f4; margin: 0; padding: 20px;">
+                    
+                    <div class="main-container" style="max-width: 800px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                        
+                        <div style="background-color: ${BRAND_NAVY}; padding: 30px; text-align: center; color: #fff;">
+                            <h1 style="margin: 0; font-size: 24px; color: ${BRAND_GOLD}; letter-spacing: 2px;">夢17精品寵物美容旅館</h1>
+                            <p style="margin: 5px 0 0; font-size: 14px; opacity: 0.8;">服務契約書副本 (系統存檔)</p>
+                        </div>
+
+                        <div class="section-padding" style="padding: 30px;">
+                            
+                            <div style="background-color: ${BG_CREAM}; border: 1px solid ${BRAND_GOLD}; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                                <table class="summary-table" width="100%" cellpadding="5">
+                                    <tr>
+                                        <td width="50%"><strong>契約編號：</strong> ${Date.now().toString().slice(-8)}</td>
+                                        <td width="50%"><strong>簽署日期：</strong> ${data.signature_time}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>服務類別：</strong> ${isBoarding ? '🏠 住宿/安親' : '✂️ 美容/SPA'}</td>
+                                        <td>
+                                            <strong>${isBoarding ? '本次預算' : '應付總額'}：</strong> 
+                                            <span style="font-size: 18px; color: ${BRAND_RED}; font-weight: bold;">$${data.total_amount || 0}</span>
+                                        </td>
+                                    </tr>
+                                    ${isBoarding ? `<tr><td><strong>入住日期：</strong> ${show(data.checkInDate)}</td><td><strong>退房日期：</strong> ${show(data.checkOutDate)}</td></tr>` : ''}
+                                </table>
+                            </div>
+
+                            <h3 style="border-bottom: 2px solid ${BRAND_GOLD}; padding-bottom: 5px; margin-top: 0;">👤 甲方 (飼主資料)</h3>
+                            <table class="responsive-table" width="100%" cellpadding="8" style="font-size: 13px; border-collapse: collapse; margin-bottom: 20px;">
+                                <tr style="background:#f9f9f9;">
+                                    <td width="50%">
+                                        <span class="mobile-label">飼主姓名</span>
+                                        <strong>${show(data.owner_name)}</strong> (${data.is_owner === '是' ? '本人' : '非本人'})
+                                    </td>
+                                    <td width="50%">
+                                        <span class="mobile-label">連絡電話</span>
+                                        ${show(data.phone)}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="mobile-label">電子信箱</span>${show(data.email)}</td>
+                                    <td><span class="mobile-label">身分證字號</span>${show(data.owner_id)}</td>
+                                </tr>
+                                <tr style="background:#f9f9f9;">
+                                    <td colspan="2"><span class="mobile-label">通訊地址</span>${show(data.address)}</td>
+                                </tr>
+                                <tr>
+                                    <td><span class="mobile-label">緊急聯絡人</span>${show(data.emergency_name)}</td>
+                                    <td><span class="mobile-label">緊急聯絡電話</span>${show(data.emergency_phone)}</td>
+                                </tr>
+                            </table>
+
+                            <h3 style="border-bottom: 2px solid ${BRAND_GOLD}; padding-bottom: 5px;">🐾 寵物資料</h3>
+                            <table class="responsive-table" width="100%" cellpadding="8" style="font-size: 13px; border-collapse: collapse; margin-bottom: 20px;">
+                                <tr style="background:#f9f9f9;">
+                                    <td width="50%">
+                                        <span class="mobile-label">名字/品種</span>
+                                        <strong>${show(data.pet_name)}</strong> (${data.pet_type==='cat'?'貓':'狗'} / ${show(data.breed)})
+                                    </td>
+                                    <td width="50%">
+                                        <span class="mobile-label">基本資料</span>
+                                        ${data.sex} / ${data.age_value}${data.age_type==='year'?'歲':'個月'} / ${data.weight}kg
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <span class="mobile-label">健康狀況</span>
+                                        結紮:${data.fix} / 驅蟲:${data.deworming_monthly} / 晶片:${data.chip_status} (${data.chip_id || '無'})
+                                    </td>
+                                    <td>
+                                        <span class="mobile-label">過往病史</span>
+                                        <span style="color:${data.medical_has==='有'?BRAND_RED:'inherit'}">${data.medical_has} (${arr(data.medical_tags)} ${data.medical_other})</span>
+                                    </td>
+                                </tr>
+                                <tr style="background:#f9f9f9;">
+                                    <td colspan="2">
+                                        <span class="mobile-label">個性與外觀</span>
+                                        個性: ${arr(data.social_traits)} ${data.personality_other} <br>
+                                        外觀: ${arr(data.physical_check)} ${data.physical_other}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2">
+                                        <span class="mobile-label">指定醫院</span>
+                                        ${data.clinic || '無'} (電話: ${data.clinic_phone || '-'})
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <h3 style="border-bottom: 2px solid ${BRAND_GOLD}; padding-bottom: 5px;">💰 消費明細與備註</h3>
+                            <table class="responsive-table" width="100%" cellpadding="8" style="font-size: 13px; border-collapse: collapse; margin-bottom: 20px;">
+                                <tr style="background:#f9f9f9;">
+                                    <td width="100%" colspan="2">
+                                        <span class="mobile-label">服務項目</span>
+                                        ${data.view === 'boarding' ? '住宿' + (Array.isArray(data.service_tags) && data.service_tags.length > 0 ? '、' + data.service_tags.join('、') : '') : arr(data.service_tags)}
+                                    </td>
+                                </tr>
+                                ${isBoarding ? `<tr><td colspan="2"><span class="mobile-label">房型/放風</span>${data.room_type} ($${data.room_price}/晚) / ${data.temperament}</td></tr>` : ''}
+                                <tr>
+                                    <td width="50%">
+                                        <span class="mobile-label">付款方式</span>
+                                        ${data.payment_method}
+                                    </td>
+                                    <td width="50%">
+                                        <span class="mobile-label">${isBoarding ? '付款明細' : '總計金額'}</span>
+                                        ${isBoarding 
+                                            ? `訂金：$${data.deposit || 0} / 尾款：$${data.balance || 0}` 
+                                            : `<strong style="font-size: 16px; color: ${BRAND_RED};">$${data.total_amount || 0}</strong>`
+                                        }
+                                    </td>
+                                </tr>
+                                <tr style="background:#f9f9f9;">
+                                    <td colspan="2">
+                                        <span class="mobile-label">備註</span>
+                                        <span style="color:${BRAND_RED};">${data.note || '無'}</span>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <h3 style="border-bottom: 2px solid ${BRAND_GOLD}; padding-bottom: 5px;">⚖️ 契約條款與聲明</h3>
+                            <div style="font-size: 12px; color: #666; background: #fff; border: 1px solid #eee; padding: 15px; border-radius: 8px;">
+                                ${data.groomingTermsRead ? groomingTerms : ''}
+                                ${data.boardingTermsRead ? '<hr style="border:0; border-top:1px dashed #ccc; margin:15px 0;">' + boardingTerms : ''}
+                                ${isHighRisk ? highRiskTerms : ''}
+                                <p style="color:${BRAND_GOLD}; font-weight:bold; margin-top:10px;">本人已詳閱並同意以上所有內容。</p>
+                            </div>
+
+                            <div style="margin-top: 30px; background-color: #f0f0f0; padding: 15px; border-radius: 8px; font-size: 12px; color: #555;">
+                                <strong>乙方 (店家資訊)：</strong><br>
+                                佳晟寵物美容旅館-青埔店 (負責人: 顏睿諺)<br>
+                                地址：桃園市中壢區公園路二段250號<br>
+                                電話：03-287-5350 | 許可證號：特寵業字第 C1110588 號<br>
+                                指定醫療院所：青谷動物醫院 (03-287-7119)
+                            </div>
+
+                            <div style="margin-top: 40px; text-align: center; border-top: 2px dashed #ccc; padding-top: 25px;">
+                                <div style="font-size: 14px; font-weight: bold; margin-bottom: 15px;">甲方 (客戶) 簽署確認</div>
+                                <img src="${signatureUrl}" style="max-height: 80px; max-width: 100%; border-bottom: 1px solid #000;" />
+                                <div style="font-size: 11px; color: #999; margin-top: 10px;">簽署時間：${data.signature_time}</div>
+                            </div>
+
+                        </div>
+                        <div style="background-color: ${BRAND_NAVY}; color: rgba(255,255,255,0.4); text-align: center; padding: 15px; font-size: 10px;">
+                            &copy; 2026 夢17精品寵物美容旅館. All Rights Reserved.
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+        };
+
+// --- 修改後：Success View (包含開啟完整契約按鈕) ---
+        const SuccessView = memo(({ data, onReset }) => {
+            const hasEmail = data.email && data.email.trim() !== '';
+
+            // 新增：開啟完整契約視窗的功能
+            const openFullContract = () => {
+                const newWindow = window.open('', '_blank');
+                if (newWindow) {
+                    newWindow.document.write(data.htmlContent);
+                    newWindow.document.close(); // 確保瀏覽器停止加載並顯示內容
+                } else {
+                    alert('彈出視窗被瀏覽器阻擋，請允許彈出視窗以查看完整契約。');
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-6 animate-fade-in relative z-50">
+                    <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl overflow-hidden border border-white">
+                        
+                        <div className={`${hasEmail ? 'bg-dream-navy' : 'bg-dream-gold'} p-8 text-center relative overflow-hidden transition-colors duration-500`}>
+                            <div className="absolute top-[-50px] left-[-50px] w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+                            <div className="absolute bottom-[-20px] right-[-20px] w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                            
+                            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 text-white shadow-lg animate-blob">
+                                <Icon name={hasEmail ? "check" : "camera"} size={40} strokeWidth={3} />
+                            </div>
+                            <h2 className="text-2xl font-black text-white mb-2 tracking-wide">
+                                {hasEmail ? '簽署成功！信件已發送' : '簽署成功！建議截圖保存'}
+                            </h2>
+                            <p className="text-white/90 text-sm font-bold">
+                                {hasEmail ? '契約副本已寄至您的信箱' : '您未填寫信箱，請務必保存副本'}
+                            </p>
+                        </div>
+                        
+                        <div className="p-6 space-y-6">
+                            <div className={`border rounded-2xl p-5 flex gap-4 items-start shadow-sm ${hasEmail ? 'bg-gray-50 border-gray-100' : 'bg-red-50 border-red-100'}`}>
+                                <div className={`shrink-0 mt-1 p-2 rounded-full shadow-sm bg-white ${hasEmail ? 'text-dream-navy' : 'text-dream-red'}`}>
+                                    <Icon name={hasEmail ? "info" : "alert-triangle"} size={20} />
+                                </div>
+                                <div className="text-sm">
+                                    <p className={`font-bold mb-1 text-base ${hasEmail ? 'text-dream-navy' : 'text-dream-red'}`}>
+                                        {hasEmail ? '💡 溫馨提醒' : '⚠️ 重要：請立即備份'}
+                                    </p>
+                                    <p className="leading-relaxed opacity-80 text-xs font-bold text-gray-600">
+                                        {hasEmail 
+                                            ? '若沒收到信件，可能是被歸類到垃圾郵件。您也可以點擊下方按鈕開啟完整契約。' 
+                                            : '因未填寫 Email，請點擊下方按鈕開啟完整契約，並進行全螢幕截圖保存。'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* 按鈕群組 */}
+                            <div className="space-y-3">
+                                {/* 新增：開啟完整契約按鈕 */}
+                                <button 
+                                    onClick={openFullContract}
+                                    className="w-full py-4 rounded-2xl bg-dream-navy text-white font-bold shadow-xl shadow-dream-navy/30 hover:bg-[#4A3D35] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 border-2 border-dream-navy"
+                                >
+                                    <Icon name="file-text" size={20} /> 開啟完整契約頁面 (截圖用)
+                                </button>
+
+                                <button 
+                                    onClick={onReset}
+                                    className="w-full py-4 rounded-2xl bg-white text-dream-navy border-2 border-gray-100 font-bold shadow-sm hover:bg-gray-50 hover:border-dream-navy/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Icon name="home" size={20} /> 返回首頁 (完成)
+                                </button>
+                            </div>
+                            
+                            <p className="text-center text-xs text-gray-400">點擊「返回首頁」後，表單將會清空</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        });
 
         // --- Main App Component ---
         const App = () => {
@@ -1152,6 +1495,8 @@
             
             // 添加 Toast 狀態
             const [toast, setToast] = useState(null);
+            // --- 新增：提交成功後的資料狀態 ---
+            const [submittedData, setSubmittedData] = useState(null);
             
             // 顯示 Toast 的函數
             const showToast = useCallback((message, type = 'success') => {
@@ -1190,6 +1535,7 @@
                     showTermsModal: false, showHighRiskModal: null, showSigModal: false
                 });
                 setFormErrors({});
+                setSubmittedData(null); // 清除提交狀態，回到首頁
                 setView('home');
             }, []);
 
@@ -1198,7 +1544,6 @@
                 const errors = {};
                 
                 // 飼主資料驗證
-                if (!formData.email) errors.email = '請輸入電子郵件';
                 if (!formData.owner_name) errors.owner_name = '請輸入主人姓名';
                 if (!formData.is_owner) errors.is_owner = '請選擇是否為本人';
                 if (!formData.phone) errors.phone = '請輸入連絡電話';
@@ -1213,22 +1558,34 @@
                 if (!formData.breed) errors.breed = '請輸入品種';
                 if (!formData.weight) errors.weight = '請輸入體重';
                 if (!formData.age_value) errors.age_value = '請輸入年齡';
-                if (!formData.sex) errors.sex = '請選擇性別';
+if (!formData.sex) errors.sex = '請選擇性別';
                 if (!formData.fix) errors.fix = '請選擇是否結紮';
-                if (!formData.health_date) errors.health_date = '請選擇近期健檢日期';
+                // 已移除近期健檢的驗證
                 if (!formData.deworming_monthly) errors.deworming_monthly = '請選擇是否每月定期驅蟲';
                 if (formData.physical_check.length === 0) errors.physical_check = '請選擇外觀檢查項目';
                 if (formData.social_traits.length === 0) errors.social_traits = '請選擇寵物個性';
                 if (!formData.chip_status) errors.chip_status = '請選擇晶片狀態';
                 if (!formData.medical_has) errors.medical_has = '請選擇是否有過往病史';
                 
-                // 服務項目驗證
+// 服務項目驗證
                 if (formData.view === 'boarding') {
                     if (!formData.checkInDate) errors.checkInDate = '請選擇入住日期';
                     if (!formData.checkOutDate) errors.checkOutDate = '請選擇退房日期';
+                    
+                    // --- 修改後的日期驗證：允許當天退房 (end < start 才會報錯) ---
+                    if (formData.checkInDate && formData.checkOutDate) {
+                        const start = new Date(formData.checkInDate);
+                        const end = new Date(formData.checkOutDate);
+                        if (end < start) {
+                            errors.checkOutDate = '退房日期不可早於入住日期';
+                            showToast('退房日期不能早於入住日期', 'error');
+                        }
+                    }
+                    
                     if (!formData.room_type) errors.room_type = '請選擇房型';
+                    if (!formData.temperament) errors.temperament = '請選擇放風模式';
                 }
-                
+                                
                 // 簽名驗證
                 if (!formData.signature) errors.signature = '請完成簽名';
                 
@@ -1264,11 +1621,29 @@
                 showTermsModal: false, showHighRiskModal: null, showSigModal: false
             });
 
-            // 更新表單欄位
+// 更新表單欄位 (原有代碼)
             const updateField = useCallback((key, value) => {
                 setFormData(prev => ({ ...prev, [key]: value }));
             }, []);
 
+            // --- 新增：自動計算尾款 (當總金額或訂金改變時觸發) ---
+            useEffect(() => {
+                // 只有在住宿頁面才計算
+                if (formData.view === 'boarding') {
+                    const total = parseFloat(formData.total_amount) || 0;
+                    const deposit = parseFloat(formData.deposit) || 0;
+                    // 計算尾款 (總額 - 訂金)，如果變負數則顯示 0
+                    const balance = total - deposit;
+                    
+                    // 更新尾款欄位 (只在數值真的改變時才更新，避免無窮迴圈)
+                    setFormData(prev => {
+                        if (prev.balance !== balance) {
+                            return { ...prev, balance: balance };
+                        }
+                        return prev;
+                    });
+                }
+            }, [formData.total_amount, formData.deposit, formData.view]);
             // 切換數組欄位的值
             const toggleArray = useCallback((key, value) => {
                 setFormData(prev => {
@@ -1322,10 +1697,22 @@
                     age_type: petData.age_type || 'year',
                     sex: petData.sex || '',
                     fix: petData.fix || '',
-                    chip_status: petData.chip_status || '',
+chip_status: petData.chip_status || '',
                     chip_id: petData.chip_id || '',
                     lineAdded: petData.line_added || false, // 導入 LINE 狀態
                     social_traits: petData.social_traits || [], // 導入寵物個性陣列
+                    
+// --- 補上遺漏的舊客資料 ---
+                    temperament: petData.temperament || '', // 這裡負責讀取
+                    deworming_monthly: petData.deworming_monthly || '',
+                    physical_check: petData.physical_check || [],
+                    physical_other: petData.physical_other || '',
+                    medical_has: petData.medical_has || '',
+                    medical_tags: petData.medical_tags || [],
+                    medical_other: petData.medical_other || '',
+                    clinic: petData.clinic || '',
+                    clinic_phone: petData.clinic_phone || '',
+                    // ------------------------
                 }));
                 setShowPetModal(false); // 關閉彈窗
                 showToast(`已載入 ${petData.pet_name} 的資料`, 'success');
@@ -1337,7 +1724,136 @@
                 const timeString = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
                 setFormData(prev => ({ ...prev, signature: sigData, signature_time: timeString, showSigModal: false }));
             }, []);
-            
+            // --- 核心修改：獨立的提交處理函式 ---
+            const handleSubmit = async () => {
+                // 1. 驗證表單
+                const errors = validateForm();
+                if (Object.keys(errors).length > 0) {
+                    setFormErrors(errors);
+                    if (errors.lineAdded) {
+                        showToast(errors.lineAdded, 'error');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        return;
+                    }
+                    showToast('請修正表單中的錯誤', 'error');
+                    
+                    const firstErrorField = Object.keys(errors)[0];
+                    const element = document.getElementById(firstErrorField);
+                    if (element) {
+                        setTimeout(() => {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            element.classList.add('animate-shake');
+                            setTimeout(() => element.classList.remove('animate-shake'), 1000);
+                        }, 100);
+                    }
+                    return;
+                }
+
+                showToast('正在處理簽名與提交...', 'warning');
+
+                try {
+                    // 2. 上傳簽名
+                    let signatureUrl = null;
+                    if (formData.signature) {
+                        const blob = dataURLtoBlob(formData.signature);
+                        const fileName = `sig_${Date.now()}.jpg`;
+                        const { error: uploadError } = await db.storage.from('signatures').upload(fileName, blob, { contentType: 'image/jpeg' });
+                        
+                        if (uploadError) throw new Error('簽名檔上傳失敗');
+                        
+                        const { data: publicData } = db.storage.from('signatures').getPublicUrl(fileName);
+                        signatureUrl = publicData.publicUrl;
+                    }
+
+                    // 3. 準備 Payload
+                    const payload = {
+                        owner_name: formData.owner_name,
+                        is_owner: formData.is_owner,
+                        phone: formData.phone,
+                        email: formData.email,
+                        owner_id: formData.owner_id,
+                        address: formData.address,
+                        emergency_name: formData.emergency_name,
+                        emergency_phone: formData.emergency_phone,
+                        pet_name: formData.pet_name,
+                        pet_type: formData.pet_type,
+                        breed: formData.breed,
+                        weight: parseFloat(formData.weight) || 0,
+                        age_value: formData.age_value,
+                        age_type: formData.age_type,
+                        sex: formData.sex,
+                        fix: formData.fix,
+                        health_date: formData.health_date || null,
+                        deworming_monthly: formData.deworming_monthly,
+                        physical_check: formData.physical_check,
+                        physical_other: formData.physical_other,
+                        social_traits: formData.social_traits,
+                        temperament: formData.temperament,
+                        personality_other: formData.personality_other,
+                        chip_status: formData.chip_status,
+                        chip_id: formData.chip_id,
+                        medical_has: formData.medical_has,
+                        medical_tags: formData.medical_tags,
+                        medical_other: formData.medical_other,
+                        clinic: formData.clinic,
+                        clinic_phone: formData.clinic_phone,
+                        view: formData.view,
+                        service_tags: formData.service_tags,
+                        check_in_date: formData.checkInDate || null,
+                        check_out_date: formData.checkOutDate || null,
+                        room_type: formData.room_type,
+                        room_price: formData.room_price ? parseFloat(formData.room_price) : null,
+                        note: formData.note,
+                        total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
+                        payment_method: formData.payment_method,
+                        deposit: formData.deposit ? parseFloat(formData.deposit) : null,
+                        balance: formData.balance ? parseFloat(formData.balance) : null,
+                        grooming_terms_read: formData.groomingTermsRead,
+                        boarding_terms_read: formData.boardingTermsRead,
+                        high_risk_grooming_read: formData.highRiskGroomingRead,
+                        high_risk_boarding_read: formData.highRiskBoardingRead,
+                        signature: signatureUrl, // 使用上傳後的 URL
+                        signature_time: formData.signature_time,
+                        line_added: formData.lineAdded,
+                        status: 'pending'
+                    };
+
+                    // 4. 寫入資料庫 (這步最重要，必須成功)
+                    const { data, error } = await db.from('bookings').insert([payload]).select();
+                    if (error) throw error;
+
+                    console.log('提交成功:', data);
+
+                    // 5. 產生 HTML (給 Email 和 成功畫面用)
+                    const emailBody = generateContractHtml(formData, signatureUrl);
+
+                    // 6. 彈性寄信 (重點修改：即使失敗也不影響流程)
+                    if (formData.email && formData.email.trim() !== '') {
+                        try {
+                            await db.functions.invoke('resend-email', {
+                                body: {
+                                    email: formData.email,
+                                    owner_name: formData.owner_name,
+                                    pet_name: formData.pet_name,
+                                    htmlContent: emailBody
+                                }
+                            });
+                            console.log('寄信請求已發送');
+                        } catch (mailError) {
+                            // 這裡只紀錄錯誤，不拋出例外，讓程式繼續往下跑
+                            console.error('寄信失敗 (不影響訂單成立):', mailError);
+                        }
+                    }
+
+                    // 7. 設定成功狀態 (切換到成功畫面)
+                    setSubmittedData({ ...payload, htmlContent: emailBody });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                } catch (error) {
+                    console.error('提交失敗:', error);
+                    showToast('發生錯誤，請稍後再試：' + (error.message || '提交失敗'), 'error');
+                }
+            };
             // --- 處理舊客資料導入 (智慧判斷版) ---
             const handleFetchOldCustomer = useCallback(async () => {
                 // 1. 檢查是否輸入了電話
@@ -1435,6 +1951,9 @@
             }, []);
 
             // 首頁視圖
+            if (submittedData) {
+                return <SuccessView data={submittedData} onReset={resetForm} />;
+            }
             if (view === 'home') {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center p-6 py-10 relative">
@@ -1629,109 +2148,8 @@
 
                         {/* 提交按鈕 */}
                         <div className="pb-10">
-                            <button 
-                                onClick={async () => {
-                                    // 1. 驗證表單
-                                    const errors = validateForm();
-                                    if (Object.keys(errors).length > 0) {
-                                        setFormErrors(errors);
-                                        
-                                        // 特別處理 LINE 錯誤：顯示 Toast 並滾動到最上方
-                                        if (errors.lineAdded) {
-                                            showToast(errors.lineAdded, 'error'); // 顯示錯誤訊息
-                                            window.scrollTo({ top: 0, behavior: 'smooth' }); // 滾動到最上方
-                                            return; // 結束函式，不執行後續滾動
-                                        }
-                                        
-                                        // 其他錯誤：顯示通用提示並滾動到該欄位
-                                        showToast('請修正表單中的錯誤', 'error');
-                                        
-                                        const firstErrorField = Object.keys(errors)[0];
-                                        const element = document.getElementById(firstErrorField);
-                                        if (element) {
-                                            // 使用 setTimeout 確保 Toast 先出現，再滾動
-                                            setTimeout(() => {
-                                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                element.classList.add('animate-shake');
-                                                setTimeout(() => element.classList.remove('animate-shake'), 1000);
-                                            }, 100);
-                                        }
-                                        return;
-                                    }
-
-                                    // 2. 開始提交到 Supabase
-                                    showToast('正在提交資料，請稍候...', 'warning');
-
-                                    try {
-                                        // 準備資料
-                                        const payload = {
-                                            owner_name: formData.owner_name,
-                                            is_owner: formData.is_owner,
-                                            phone: formData.phone,
-                                            email: formData.email,
-                                            owner_id: formData.owner_id,
-                                            address: formData.address,
-                                            emergency_name: formData.emergency_name,
-                                            emergency_phone: formData.emergency_phone,
-                                            pet_name: formData.pet_name,
-                                            pet_type: formData.pet_type,
-                                            breed: formData.breed,
-                                            weight: parseFloat(formData.weight) || 0,
-                                            age_value: formData.age_value,
-                                            age_type: formData.age_type,
-                                            sex: formData.sex,
-                                            fix: formData.fix,
-                                            health_date: formData.health_date,
-                                            deworming_monthly: formData.deworming_monthly,
-                                            physical_check: formData.physical_check,
-                                            physical_other: formData.physical_other,
-                                            social_traits: formData.social_traits,
-                                            personality_other: formData.personality_other,
-                                            chip_status: formData.chip_status,
-                                            chip_id: formData.chip_id,
-                                            medical_has: formData.medical_has,
-                                            medical_tags: formData.medical_tags,
-                                            medical_other: formData.medical_other,
-                                            clinic: formData.clinic,
-                                            clinic_phone: formData.clinic_phone,
-                                            view: formData.view,
-                                            service_tags: formData.service_tags,
-                                            check_in_date: formData.checkInDate || null,
-                                            check_out_date: formData.checkOutDate || null,
-                                            room_type: formData.room_type,
-                                            room_price: formData.room_price ? parseFloat(formData.room_price) : null,
-                                            note: formData.note,
-                                            total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
-                                            payment_method: formData.payment_method,
-                                            deposit: formData.deposit ? parseFloat(formData.deposit) : null,
-                                            balance: formData.balance ? parseFloat(formData.balance) : null,
-                                            grooming_terms_read: formData.groomingTermsRead,
-                                            boarding_terms_read: formData.boardingTermsRead,
-                                            high_risk_grooming_read: formData.highRiskGroomingRead,
-                                            high_risk_boarding_read: formData.highRiskBoardingRead,
-                                            signature: formData.signature,
-                                            signature_time: formData.signature_time,
-                                            line_added: formData.lineAdded,
-                                            status: 'pending'
-                                        };
-
-                                        // 發送請求
-                                        const { data, error } = await db
-                                            .from('bookings')
-                                            .insert([payload])
-                                            .select();
-
-                                        if (error) throw error;
-
-                                        console.log('提交成功:', data);
-                                        showToast('預約成功！我們會盡快與您聯繫。', 'success');
-                                        resetForm();
-
-                                    } catch (error) {
-                                        console.error('提交失敗:', error);
-                                        showToast('發生錯誤，提交失敗，請稍後再試。', 'error');
-                                    }
-                                }}
+<button 
+                                onClick={handleSubmit}
                                 className="w-full py-5 rounded-[24px] bg-dream-navy text-white text-lg font-bold shadow-xl shadow-dream-navy/30 hover:scale-[1.02] active:scale-95 transition-all"
                             >
                                 確認並提交預約單

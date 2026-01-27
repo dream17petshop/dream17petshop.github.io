@@ -468,7 +468,157 @@ const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) =
             
             // Filter
             const [filters, setFilters] = useState({ search:'', status:'all', type:'all', dateStart:'', dateEnd:'' });
-            
+             const [crmSearch, setCrmSearch] = useState(''); 
+                        // --- CustomerCRM 組件 ---
+            const CustomerCRM = ({ bookings, onSelectBooking }) => {
+                // 1. 彙整顧客與寵物資料
+                const customers = useMemo(() => {
+                    const customerMap = {}; // 存放顧客資料
+                    
+                    bookings.forEach(b => {
+                        const ownerKey = b.phone; // 顧客鍵值：電話
+
+                        // 如果顧客不存在，初始化顧客資料
+                        if (!customerMap[ownerKey]) {
+                            customerMap[ownerKey] = {
+                                id: ownerKey,
+                                name: b.owner_name,
+                                phone: b.phone,
+                                email: b.email,
+                                address: b.address,
+                                totalSpent: 0,
+                                lastVisit: b.created_at,
+                                bookingIds: [],
+                                pets: {} // 使用物件存放寵物，方便去重
+                            };
+                        }
+
+                        const customer = customerMap[ownerKey];
+
+                        // 處理寵物資料
+                        const petKey = `${b.phone}_${b.pet_name}`; // 寵物鍵值：電話_名字
+                        if (!customer.pets[petKey]) {
+                            customer.pets[petKey] = {
+                                name: b.pet_name,
+                                breed: b.breed,
+                                type: b.view === 'boarding' ? '住宿' : '美容', // 簡單判斷類型
+                                visitCount: 0,
+                                totalSpent: 0,
+                                lastVisit: b.created_at,
+                                services: [] // 紀錄服務項目
+                            };
+                        }
+
+                        const pet = customer.pets[petKey];
+
+                        // 更新顧客統計
+                        if (b.status !== 'cancelled') {
+                            customer.totalSpent += Number(b.total_amount || 0);
+                            pet.totalSpent += Number(b.total_amount || 0);
+                        }
+                        
+                        // 更新最近造訪日期 (顧客與寵物都要更新)
+                        if (new Date(b.created_at) > new Date(customer.lastVisit)) {
+                            customer.lastVisit = b.created_at;
+                        }
+                        if (new Date(b.created_at) > new Date(pet.lastVisit)) {
+                            pet.lastVisit = b.created_at;
+                        }
+
+                        pet.visitCount += 1;
+                        customer.bookingIds.push(b.id);
+                        
+                        // 紀錄服務項目 (簡單去重)
+                        const serviceName = Array.isArray(b.service_tags) ? b.service_tags.join('/') : b.service_tags;
+                        if (serviceName && !pet.services.includes(serviceName)) {
+                            pet.services.push(serviceName);
+                        }
+                    });
+
+                    // 將 pets 物件轉為陣列，並依照消費金額排序顧客
+                    return Object.values(customerMap)
+                        .map(c => ({
+                            ...c,
+                            pets: Object.values(c.pets) // 將 pets 物件轉為陣列
+                        }))
+                        .sort((a, b) => b.totalSpent - a.totalSpent);
+                }, [bookings]);
+
+                return (
+                    <div className="space-y-4 animate-fade-in">
+                        {/* CRM 標題與搜尋 */}
+                        <div className="glass-card p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                            <h3 className="font-bold text-brand-navy text-lg flex items-center gap-2">
+                                <Icon name="users" size={20}/> 顧客名單 ({customers.length})
+                            </h3>
+                            <div className="relative w-full md:w-64">
+                                <Icon name="search" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16}/>
+                                <input 
+                                    type="text" 
+                                    placeholder="搜尋姓名或電話..." 
+                                    className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-50 border-none text-sm font-bold text-brand-navy focus:ring-2 focus:ring-brand-gold/20 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* 顧客列表卡片 */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {customers.map(c => (
+                                <div key={c.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-brand-gold/50 hover:shadow-md transition-all cursor-pointer group">
+                                    {/* 頂部：顧客基本資訊 */}
+                                    <div className="flex justify-between items-start mb-4 border-b border-gray-100 pb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-brand-navy/10 flex items-center justify-center text-brand-navy font-bold text-lg">
+                                                {c.name ? c.name.charAt(0) : '?'}
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-brand-navy">{c.name}</div>
+                                                <div className="text-xs text-gray-400">{c.phone}</div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs font-bold text-gray-400">累計消費</div>
+                                            <div className="font-black text-brand-gold">${c.totalSpent.toLocaleString()}</div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* 中部：寵物列表 */}
+                                    <div className="space-y-2 mb-4">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">關聯寵物 ({c.pets.length})</div>
+                                        {c.pets.map(p => (
+                                            <div key={`${c.phone}_${p.name}`} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg text-xs">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-brand-navy font-bold text-xs border border-gray-200">
+                                                        {p.name.charAt(0)}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-bold text-gray-700">{p.name}</div>
+                                                        <div className="text-[10px] text-gray-400">{p.breed || '未知品種'} • {p.visitCount}次服務</div>
+                                                    </div>
+                                                </div>
+                                                <div className="font-bold text-brand-gold text-xs">${p.totalSpent.toLocaleString()}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* 底部：操作按鈕 */}
+                                    <div className="flex gap-2 pt-2 border-t border-gray-100">
+                                        <button 
+                                            onClick={() => {
+                                                if(onSelectBooking) onSelectBooking(c.phone);
+                                            }}
+                                            className="flex-1 py-2 rounded-lg bg-brand-navy text-white text-xs font-bold hover:bg-brand-navy/90 transition-colors flex items-center justify-center gap-1"
+                                        >
+                                            <Icon name="list" size={14}/> 查看訂單
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                );
+            };
+
             // UI
             const [selected, setSelected] = useState(null);
             const [isEditing, setIsEditing] = useState(false);
@@ -755,6 +905,19 @@ if (!session) return (
                                 )}
                                 
 {subView === 'calendar' && <CalendarView bookings={bookings} onSelect={(b)=>{setSelected(b); setShopNote(b.shop_note||''); setIsEditing(false);}} />}
+                                {subView === 'crm' && (
+                                    <CustomerCRM 
+                                        bookings={bookings} 
+                                        onSelectBooking={(phone) => {
+                                            const customerBookings = bookings.filter(b => b.phone === phone);
+                                            if (customerBookings.length > 0) {
+                                                setSelected(customerBookings[0]);
+                                                setShopNote(customerBookings[0].shop_note || '');
+                                                setIsEditing(false);
+                                            }
+                                        }} 
+                                    />
+                                )}
                             </div>
                         )}
                     </main>
@@ -856,16 +1019,54 @@ if (!session) return (
                                             </div>
                                         </Section>
 
-                                        <Section title="消費明細" icon="credit-card">
+<Section title="消費明細" icon="credit-card">
                                             <div className="bg-brand-gold/10 p-4 rounded-xl border border-brand-gold/30 mb-4 flex justify-between items-end">
-                                                <div>
+                                                <div className="flex-1 mr-4">
                                                     <div className="text-xs font-bold text-brand-gold uppercase tracking-wider mb-1">Total Amount</div>
-                                                    <div className="text-2xl font-black text-brand-navy">${selected.total_amount}</div>
+                                                    <DetailRow 
+                                                        label="總金額" 
+                                                        field="total_amount" 
+                                                        form={editForm} 
+                                                        setForm={setEditForm} 
+                                                        editing={isEditing} 
+                                                        val={selected.total_amount} 
+                                                        type="number" 
+                                                        isPrice={true} 
+                                                        userRole={userRole}
+                                                    />
                                                 </div>
-                                                <div className="text-xs font-bold text-brand-navy bg-white/60 px-3 py-1.5 rounded-lg border border-white">
+                                                <div className="text-xs font-bold text-brand-navy bg-white/60 px-3 py-1.5 rounded-lg border border-white shrink-0">
                                                     {selected.view==='boarding'?'🏠 住宿':'✂️ 美容'}
                                                 </div>
                                             </div>
+
+                                            {/* --- 新增：訂金與尾款 (可編輯) --- */}
+                                            <div className="grid grid-cols-2 gap-4 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                                                <DetailRow 
+                                                    label="已收訂金" 
+                                                    field="deposit" 
+                                                    form={editForm} 
+                                                    setForm={setEditForm} 
+                                                    editing={isEditing} 
+                                                    val={selected.deposit} 
+                                                    type="number" 
+                                                    isPrice={true} 
+                                                    userRole={userRole}
+                                                />
+                                                <DetailRow 
+                                                    label="剩餘尾款" 
+                                                    field="balance" 
+                                                    form={editForm} 
+                                                    setForm={setEditForm} 
+                                                    editing={isEditing} 
+                                                    val={selected.balance} 
+                                                    type="number" 
+                                                    isPrice={true} 
+                                                    userRole={userRole}
+                                                />
+                                            </div>
+                                            {/* ------------------------------- */}
+
                                             <DetailRow label="服務項目" field="service_tags" form={editForm} setForm={setEditForm} editing={isEditing} val={Array.isArray(selected.service_tags)?selected.service_tags.join('、'):selected.service_tags} full />
                                             <div className="grid grid-cols-2 gap-4 mt-4">
                                                 <DetailRow label="付款方式" field="payment_method" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.payment_method} />
@@ -941,12 +1142,18 @@ if (!session) return (
             </div>
         );
 
-        const DetailRow = ({ label, val, editing, field, form, setForm, full, type="text" }) => (
+        const DetailRow = ({ label, val, editing, field, form, setForm, full, type="text", isPrice, userRole }) => (
             <div className={full ? 'col-span-2' : ''}>
                 <div className="text-[11px] font-bold text-gray-400 mb-1.5 uppercase tracking-wider">{label}</div>
                 {editing && field ? (
-                    <input type={type} className="edit-input bg-gray-50 border-gray-200 focus:bg-white" 
-                        value={form[field]||''} onChange={e=>setForm({...form, [field]:e.target.value})} />
+                    <input 
+                        type={type} 
+                        className="edit-input bg-gray-50 border-gray-200 focus:bg-white" 
+                        value={form[field]||''} 
+                        onChange={e=>setForm({...form, [field]:e.target.value})} 
+                        // 這裡是關鍵：如果是價格欄位，且使用者沒有管理權限，則設為 disabled
+                        disabled={isPrice && !userRole?.canManage} 
+                    />
                 ) : (
                     <div className="text-sm font-bold text-brand-navy break-words min-h-[20px]">{val||'-'}</div>
                 )}
