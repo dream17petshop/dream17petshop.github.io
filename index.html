@@ -1492,7 +1492,7 @@
             const [isFetching, setIsFetching] = useState(false);
             const [showPetModal, setShowPetModal] = useState(false);
             const [foundPets, setFoundPets] = useState([]);
-            
+            const [isSubmitting, setIsSubmitting] = useState(false);
             // 添加 Toast 狀態
             const [toast, setToast] = useState(null);
             // --- 新增：提交成功後的資料狀態 ---
@@ -1724,8 +1724,11 @@ chip_status: petData.chip_status || '',
                 const timeString = `${now.getFullYear()}/${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
                 setFormData(prev => ({ ...prev, signature: sigData, signature_time: timeString, showSigModal: false }));
             }, []);
-            // --- 核心修改：獨立的提交處理函式 ---
+// --- 核心修改：獨立的提交處理函式 (含防連點鎖定) ---
             const handleSubmit = async () => {
+                // 0. 防重複點擊檢查：如果正在提交中，直接返回
+                if (isSubmitting) return;
+
                 // 1. 驗證表單
                 const errors = validateForm();
                 if (Object.keys(errors).length > 0) {
@@ -1749,6 +1752,8 @@ chip_status: petData.chip_status || '',
                     return;
                 }
 
+                // --- 鎖定按鈕並顯示提示 ---
+                setIsSubmitting(true);
                 showToast('正在處理簽名與提交...', 'warning');
 
                 try {
@@ -1852,8 +1857,11 @@ chip_status: petData.chip_status || '',
                 } catch (error) {
                     console.error('提交失敗:', error);
                     showToast('發生錯誤，請稍後再試：' + (error.message || '提交失敗'), 'error');
+                    // --- 發生錯誤時才解開按鈕，讓用戶可以重試 ---
+                    setIsSubmitting(false);
                 }
             };
+            
             // --- 處理舊客資料導入 (智慧判斷版) ---
             const handleFetchOldCustomer = useCallback(async () => {
                 // 1. 檢查是否輸入了電話
@@ -2146,16 +2154,27 @@ chip_status: petData.chip_status || '',
                             errors={formErrors}
                         />
 
-                        {/* 提交按鈕 */}
-                        <div className="pb-10">
-<button 
-                                onClick={handleSubmit}
-                                className="w-full py-5 rounded-[24px] bg-dream-navy text-white text-lg font-bold shadow-xl shadow-dream-navy/30 hover:scale-[1.02] active:scale-95 transition-all"
-                            >
-                                確認並提交預約單
-                            </button>
-                        </div>
-
+{/* --- 替換原有的提交按鈕 --- */}
+<div className="pb-10">
+    <button 
+        onClick={handleSubmit}
+        disabled={isSubmitting}
+        className={`w-full py-5 rounded-[24px] text-white text-lg font-bold shadow-xl transition-all flex items-center justify-center gap-3 ${
+            isSubmitting 
+            ? 'bg-gray-400 cursor-not-allowed' 
+            : 'bg-dream-navy shadow-dream-navy/30 hover:scale-[1.02] active:scale-95'
+        }`}
+    >
+        {isSubmitting ? (
+            <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span>系統處理中，請稍候...</span>
+            </>
+        ) : (
+            "確認並提交預約單"
+        )}
+    </button>
+</div>
                     </main>
 
                     {/* 寵物選擇彈窗 */}
