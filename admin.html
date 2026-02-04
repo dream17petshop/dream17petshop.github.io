@@ -124,10 +124,29 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #C5A065; border-radius: 3px; opacity: 0.5; }
         
-        @media print {
+@media print {
             body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; background: white; color: black; z-index: 9999; }
+            #print-area {
+                visibility: visible !important;
+                display: block !important;
+                position: absolute;
+                left: 0; top: 0;
+                width: 100%;
+                padding: 40px;
+                background: white !important;
+                color: #5C4D42 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                font-size: 12px;
+            }
+            #print-area * { visibility: visible !important; }
+            .print-header { border-bottom: 3px solid #C5A065; margin-bottom: 20px; padding-bottom: 10px; text-align: center; }
+            .print-section-title { background: #FAF8F5; border-left: 5px solid #5C4D42; padding: 5px 12px; font-weight: bold; margin-top: 20px; color: #5C4D42; font-size: 14px; }
+            .print-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+            .print-box { border: 1px solid #E5E7EB; border-radius: 12px; padding: 12px; }
+            .print-label { font-size: 10px; color: #9CA3AF; font-weight: bold; margin-bottom: 2px; }
+            .print-value { font-size: 12px; font-weight: bold; color: #5C4D42; }
+            .print-alert { border: 2px dashed #E05D5D; background: #FFF5F5 !important; padding: 12px; border-radius: 12px; margin-top: 15px; color: #E05D5D; font-size: 10px; line-height: 1.5; }
         }
     </style>
 </head>
@@ -1096,30 +1115,157 @@ if (!session) return (
                                     </div>
                                 </div>
 
-                                {/* 列印隱藏區 */}
+{/* 夢17 專屬完整服務契約列印區 */}
                                 <div id="print-area" className="hidden">
-                                    <div className="p-10 text-black font-sans">
-                                        <div className="text-center border-b-2 border-black pb-4 mb-6">
-                                            <h1 className="text-3xl font-black mb-2">夢17精品寵物美容旅館</h1>
-                                            <p className="text-lg font-bold">服務契約書</p>
+                                    <div className="print-header">
+                                        <h1 className="text-3xl font-black" style={{ color: '#5C4D42' }}>夢17精品寵物美容旅館</h1>
+                                        <p className="text-[11px] font-bold tracking-[0.4em] uppercase" style={{ color: '#C5A065' }}>Service Agreement / 服務契約副本</p>
+                                    </div>
+
+                                    <div className="flex justify-between mb-4 text-[10px] font-bold text-gray-400 border-b-2 border-gray-100 pb-2">
+                                        <span>契約單號：#{String(selected.id).slice(0, 8)}</span>
+                                        <span>簽署時間：{selected.signature_time || new Date(selected.created_at).toLocaleString()}</span>
+                                    </div>
+
+                                    {/* 甲方資料 */}
+                                    <div className="print-section-title">👤 甲方 (飼主資料)</div>
+                                    <div className="print-grid">
+                                        <div className="print-box">
+                                            <div className="print-label">姓名 (是否為本人)</div>
+                                            <div className="print-value">{selected.owner_name} ({selected.is_owner || '是'})</div>
                                         </div>
-                                        <div className="flex justify-between mb-6 text-sm"><div>單號: #{selected.id}</div><div>日期: {new Date(selected.created_at).toLocaleDateString()}</div></div>
-                                        <div className="grid grid-cols-2 gap-8 mb-8">
-                                            <div className="border-2 border-black p-4">
-                                                <h3 className="font-bold border-b border-black pb-2 mb-2 text-lg">甲方 (飼主)</h3>
-                                                <p className="mb-1">姓名: {selected.owner_name}</p>
-                                                <p className="mb-1">電話: {selected.phone}</p>
-                                                <p className="mb-1">身分證: {selected.owner_id}</p>
-                                            </div>
-                                            <div className="border-2 border-black p-4">
-                                                <h3 className="font-bold border-b border-black pb-2 mb-2 text-lg">乙方 (寵物)</h3>
-                                                <p className="mb-1">名字: {selected.pet_name}</p>
-                                                <p className="mb-1">品種: {selected.breed}</p>
-                                                <p className="mb-1">體重: {selected.weight}kg</p>
+                                        <div className="print-box">
+                                            <div className="print-label">連絡電話 / 電子信箱</div>
+                                            <div className="print-value">{selected.phone} / {selected.email || '未提供'}</div>
+                                        </div>
+                                    </div>
+                                    <div className="print-grid">
+                                        <div className="print-box">
+                                            <div className="print-label">身分證字號 / 通訊地址</div>
+                                            <div className="print-value">{selected.owner_id} / {selected.address}</div>
+                                        </div>
+                                        <div className="print-box" style={{ background: '#FFF5F5' }}>
+                                            <div className="print-label text-red-400">緊急聯絡人 (非本人)</div>
+                                            <div className="print-value">{selected.emergency_name} / {selected.emergency_phone}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* 乙方寵物資料 */}
+                                    <div className="print-section-title">🐾 乙方 (寵物資料)</div>
+                                    <div className="print-grid">
+                                        <div className="print-box">
+                                            <div className="print-label">名字 / 品種 / 性別</div>
+                                            <div className="print-value">{selected.pet_name} / {selected.breed} / {selected.sex}</div>
+                                        </div>
+                                        <div className="print-box">
+                                            <div className="print-label">年齡 / 體重 / 晶片狀態</div>
+                                            <div className="print-value">
+                                                {selected.age_value}{selected.age_type === 'year' ? '歲' : '個月'} / {selected.weight}kg / {selected.chip_status} ({selected.chip_id || '無'})
                                             </div>
                                         </div>
-                                        <div className="border-2 border-black p-4 mb-8"><h3 className="font-bold border-b border-black pb-2 mb-2 text-lg">服務內容</h3><p className="mb-2 text-lg">{Array.isArray(selected.service_tags)?selected.service_tags.join('、'):selected.service_tags}</p>{selected.view==='boarding' && <p className="mb-2">入住: {selected.check_in_date} ~ {selected.check_out_date}</p>}<p className="mt-4 font-bold text-right text-2xl">總金額: ${selected.total_amount}</p></div>
-                                        <div className="flex justify-between mt-16 align-bottom"><div className="text-center w-1/3"><img src={selected.signature} className="h-20 mx-auto mb-2"/><div className="border-t border-black pt-2">甲方簽章</div></div><div className="text-center w-1/3 pt-24 border-t border-black">乙方簽章</div></div>
+                                    </div>
+                                    <div className="print-box mt-2">
+                                        <div className="print-label">健康檢查與病史</div>
+                                        <div className="print-value">
+                                            過往病史：{selected.medical_has === '有' ? (
+                                                (() => {
+                                                    try {
+                                                        const tags = typeof selected.medical_tags === 'string' ? JSON.parse(selected.medical_tags) : selected.medical_tags;
+                                                        return Array.isArray(tags) ? tags.join('、') : (tags || '無');
+                                                    } catch(e) { return selected.medical_tags || '無'; }
+                                                })() + (selected.medical_other ? ` (${selected.medical_other})` : '')
+                                            ) : '無'}
+                                        </div>
+                                        <div className="text-[10px] mt-1 text-gray-500">
+                                            每月驅蟲：{selected.deworming_monthly} | 
+                                            指定醫院：{selected.clinic || '無'} ({selected.clinic_phone || '-'})
+                                        </div>
+                                    </div>
+                                    <div className="print-box mt-2">
+                                        <div className="print-label">外觀檢查與個性特質</div>
+                                        <div className="print-value">
+                                            外觀：{(() => {
+                                                try {
+                                                    const val = typeof selected.physical_check === 'string' ? JSON.parse(selected.physical_check) : selected.physical_check;
+                                                    return Array.isArray(val) ? val.join('、') : (val || '正常');
+                                                } catch(e) { return selected.physical_check || '正常'; }
+                                            })()} {selected.physical_other}
+                                        </div>
+                                        <div className="print-value">
+                                            個性：{(() => {
+                                                try {
+                                                    const val = typeof selected.social_traits === 'string' ? JSON.parse(selected.social_traits) : selected.social_traits;
+                                                    return Array.isArray(val) ? val.join('、') : (val || '無');
+                                                } catch(e) { return selected.social_traits || '無'; }
+                                            })()} {selected.personality_other}
+                                        </div>
+                                    </div>
+
+                                    {/* 消費項目 */}
+                                    <div className="print-section-title">💰 消費明細與約定</div>
+                                    <div className="print-box">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex-1">
+                                                <div className="print-label">服務項目</div>
+                                                <div className="print-value text-sm">
+                                                    {selected.view === 'boarding' ? '🏠 住宿/安親' : '✂️ 美容服務'}：
+                                                    {(() => {
+                                                        try {
+                                                            const tags = typeof selected.service_tags === 'string' ? JSON.parse(selected.service_tags) : selected.service_tags;
+                                                            return Array.isArray(tags) ? tags.join('、') : (tags || '無');
+                                                        } catch (e) { return selected.service_tags || '無'; }
+                                                    })()}
+                                                </div>
+                                                {selected.view === 'boarding' && (
+                                                    <div className="text-[10px] font-bold mt-1" style={{ color: '#5C4D42' }}>
+                                                        入住：{selected.check_in_date} ~ {selected.check_out_date} | 房型：{selected.room_type} | 放風：{selected.temperament}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="text-right border-l pl-6">
+                                                <div className="print-label">應付總金額 (付款：{selected.payment_method})</div>
+                                                <div className="text-2xl font-black" style={{ color: '#5C4D42' }}>${selected.total_amount}</div>
+                                            </div>
+                                        </div>
+                                        {selected.view === 'boarding' && (
+                                            <div className="mt-2 pt-2 border-t border-dashed flex justify-end gap-6 text-[11px] font-bold">
+                                                <span>已收訂金：${selected.deposit || 0}</span>
+                                                <span style={{ color: '#E05D5D' }}>剩餘尾款：${selected.balance || 0}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* 高風險條款自動判定 (同步 index.html 邏輯) */}
+                                    {(selected.medical_has === '有' || (selected.age_type === 'year' && parseInt(selected.age_value) >= 8)) && (
+                                        <div className="print-alert">
+                                            <strong>⚠️ 高風險服務風險告知聲明：</strong><br/>
+                                            甲方確認已就寵物年齡、病史及行為特性為誠實告知。本人知悉高齡或有病史之寵物對壓力耐受度較低，服務中可能因緊張誘發舊疾或不可預期之意外。若不利結果源於寵物自身狀況且乙方無故意過失，乙方不負損害賠償責任。
+                                        </div>
+                                    )}
+
+                                    <div className="mt-4 p-3 bg-gray-50 rounded-xl text-[9px] text-gray-400 text-justify italic leading-relaxed">
+                                        甲方確認已詳閱並同意夢17精品寵物美容旅館之服務契約條款，包含美容條款、住宿非24小時照護聲明及相關賠償限額規定，並確認上述填寫資料均屬實。
+                                    </div>
+
+                                    {/* 雙方簽署 */}
+                                    <div className="flex justify-between items-end mt-12 px-10">
+                                        <div className="text-center w-64">
+                                            {selected.signature ? (
+                                                <div className="relative">
+                                                    <img src={selected.signature} className="h-20 mx-auto mb-1" />
+                                                    <div className="text-[8px] text-gray-300">Signed: {selected.signature_time}</div>
+                                                </div>
+                                            ) : <div className="h-20" />}
+                                            <div className="border-t-2 border-[#5C4D42] pt-2 font-bold">甲方 (飼主) 簽章</div>
+                                        </div>
+                                        <div className="text-center w-64">
+                                            <div className="h-20" />
+                                            <div className="border-t-2 border-[#5C4D42] pt-2 font-bold">乙方 (店鋪) 蓋印</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-10 text-[9px] text-gray-300 text-center">
+                                        夢17精品寵物美容旅館 | 桃園市中壢區公園路二段250號 | 03-287-5350 | 特寵業字第 C1110588 號
                                     </div>
                                 </div>
                             </div>
@@ -1160,5 +1306,75 @@ if (!session) return (
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw-admin.js').then(reg => {
+                console.log('SW 註冊成功');
+
+                // 檢查是否一進來就有版本在等待
+                if (reg.waiting) {
+                    console.log('發現等待中的更新');
+                    showUpdatePrompt(reg.waiting);
+                }
+
+                // 監聽是否有新版本下載完成
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('新版本下載完成，準備提示');
+                            showUpdatePrompt(newWorker);
+                        }
+                    });
+                });
+            });
+        });
+
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                window.location.reload();
+                refreshing = true;
+            }
+        });
+    }
+
+    function showUpdatePrompt(worker) {
+        if (document.getElementById('pwa-update-banner')) return;
+        
+        console.log('正在顯示更新提示框...');
+        const banner = document.createElement('div');
+        banner.id = 'pwa-update-banner';
+        // 增加 z-index 確保在最上層
+        banner.className = 'fixed bottom-6 right-6 z-[99999] animate-slide-up';
+        banner.innerHTML = `
+            <div style="background: #5C4D42; border: 1px solid #C5A065; box-shadow: 0 10px 40px rgba(0,0,0,0.4);" 
+                 class="p-6 rounded-[28px] flex flex-col gap-4 min-w-[300px]">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                        <i data-lucide="refresh-cw" class="text-[#C5A065]"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold text-sm">系統更新通知</h4>
+                        <p class="text-gray-300 text-[10px]">新功能已準備就緒</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button id="pwa-ignore" class="flex-1 py-2 text-gray-400 text-xs font-bold">稍後</button>
+                    <button id="pwa-update" class="flex-[2] py-2 rounded-xl bg-[#C5A065] text-[#5C4D42] text-xs font-black shadow-lg">立即更新</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(banner);
+        if (window.lucide) window.lucide.createIcons({ root: banner });
+
+        document.getElementById('pwa-update').onclick = () => {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+            banner.remove();
+        };
+        document.getElementById('pwa-ignore').onclick = () => banner.remove();
+    }
+</script>
 </body>
 </html>
