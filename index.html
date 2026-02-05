@@ -1536,65 +1536,79 @@
                 setView('home');
             }, []);
 
-// 驗證表單的函數 (修正版：支援 0 元判斷與補全金額驗證)
-            const validateForm = () => {
-                const errors = {};
-                
-                // 1. 飼主資料驗證 (使用 isEmpty)
-                if (isEmpty(formData.owner_name)) errors.owner_name = '請輸入主人姓名';
-                if (isEmpty(formData.is_owner)) errors.is_owner = '請選擇是否為本人';
-                if (isEmpty(formData.phone)) errors.phone = '請輸入連絡電話';
-                if (isEmpty(formData.owner_id)) errors.owner_id = '請輸入身分證字號';
-                if (isEmpty(formData.address)) errors.address = '請輸入通訊地址';
-                if (isEmpty(formData.emergency_name)) errors.emergency_name = '請輸入緊急聯絡人姓名';
-                if (isEmpty(formData.emergency_phone)) errors.emergency_phone = '請輸入緊急聯絡人電話';
-                
-                // 2. 寵物資料驗證
-                if (isEmpty(formData.pet_type)) errors.pet_type = '請選擇寵物種類';
-                if (isEmpty(formData.pet_name)) errors.pet_name = '請輸入寵物名字';
-                if (isEmpty(formData.breed)) errors.breed = '請輸入品種';
-                if (isEmpty(formData.weight)) errors.weight = '請輸入體重';
-                if (isEmpty(formData.age_value)) errors.age_value = '請輸入年齡';
-                if (isEmpty(formData.sex)) errors.sex = '請選擇性別';
-                if (isEmpty(formData.fix)) errors.fix = '請選擇是否結紮';
-                if (isEmpty(formData.deworming_monthly)) errors.deworming_monthly = '請選擇是否每月定期驅蟲';
-                if (isEmpty(formData.physical_check)) errors.physical_check = '請選擇外觀檢查項目';
-                if (isEmpty(formData.social_traits)) errors.social_traits = '請選擇寵物個性';
-                if (isEmpty(formData.chip_status)) errors.chip_status = '請選擇晶片狀態';
-                if (isEmpty(formData.medical_has)) errors.medical_has = '請選擇是否有過往病史';
-                
-                // 3. 服務項目與金額驗證
-                if (formData.view === 'boarding') {
-                    if (isEmpty(formData.checkInDate)) errors.checkInDate = '請選擇入住日期';
-                    if (isEmpty(formData.checkOutDate)) errors.checkOutDate = '請選擇退房日期';
-                    
-                    // 日期邏輯檢查
-                    if (formData.checkInDate && formData.checkOutDate) {
-                        const start = new Date(formData.checkInDate);
-                        const end = new Date(formData.checkOutDate);
-                        if (end < start) {
-                            errors.checkOutDate = '退房日期不可早於入住日期';
-                        }
-                    }
-                    
-                    if (isEmpty(formData.room_type)) errors.room_type = '請選擇房型';
-                    if (isEmpty(formData.temperament)) errors.temperament = '請選擇放風模式';
 
-                    // --- 住宿金額檢查 (支援 0 元) ---
-                    if (isEmpty(formData.deposit)) errors.deposit = '請輸入訂金';
-                    if (isEmpty(formData.balance)) errors.balance = '請輸入尾款';
-                }
+// 驗證表單的函數 (修正版：根據頁面動態驗證)
+const validateForm = () => {
+    const errors = {};
+    // 從 formData 中解構出 view 和其餘的 data
+    const { view, ...data } = formData;
 
-                // 4. 消費總額驗證
-                if (isEmpty(formData.total_amount)) errors.total_amount = '請輸入消費總金額';
-                if (isEmpty(formData.payment_method)) errors.payment_method = '請選擇付款方式';
-                                
-                // 5. 簽名與 LINE 驗證
-                if (isEmpty(formData.signature)) errors.signature = '請完成簽名';
-                if (!formData.lineAdded) errors.lineAdded = '請先完成「加入官方 LINE」並「傳送貼圖」兩個步驟';
-                
-                return errors;
-            };
+    // 1. 定義基礎必填欄位 (美容和住宿都需要)
+    const requiredFields = {
+        owner_name: '請輸入主人姓名',
+        is_owner: '請選擇是否為本人',
+        phone: '請輸入連絡電話',
+        address: '請輸入通訊地址',
+        emergency_name: '請輸入緊急聯絡人姓名',
+        emergency_phone: '請輸入緊急聯絡人電話',
+        pet_type: '請選擇寵物種類',
+        pet_name: '請輸入寵物名字',
+        breed: '請輸入品種',
+        weight: '請輸入體重',
+        age_value: '請輸入年齡',
+        sex: '請選擇性別',
+        fix: '請選擇是否結紮',
+        deworming_monthly: '請選擇是否每月定期驅蟲',
+        physical_check: '請選擇外觀檢查項目',
+        social_traits: '請選擇寵物個性',
+        chip_status: '請選擇晶片狀態',
+        medical_has: '請選擇是否有過往病史',
+        total_amount: '請輸入消費總金額',
+        payment_method: '請選擇付款方式',
+        signature: '請完成簽名',
+        lineAdded: '請確認是否已加入官方LINE並傳送貼圖' // 將 lineAdded 改為這裡驗證
+    };
+
+    // 2. 如果是住宿頁面，額外增加住宿專屬的必填欄位
+    if (view === 'boarding') {
+        Object.assign(requiredFields, {
+            owner_id: '請輸入身分證字號', // 身分證只在住宿時必填
+            checkInDate: '請選擇入住日期',
+            checkOutDate: '請選擇退房日期',
+            room_type: '請選擇房型',
+            temperament: '請選擇放風模式',
+            deposit: '請輸入訂金',
+            balance: '請輸入尾款'
+        });
+    } else {
+        // 如果是美容頁面，身分證字號是選填的，所以不用加到 requiredFields
+    }
+
+    // 3. 遍歷最終的必填欄位列表，進行驗證
+    for (const field in requiredFields) {
+        // 特別處理 lineAdded，因為它的值是 boolean
+        if (field === 'lineAdded' && !data[field]) {
+            errors[field] = requiredFields[field];
+        } 
+        // 處理其他欄位
+        else if (field !== 'lineAdded' && isEmpty(data[field])) {
+            errors[field] = requiredFields[field];
+        }
+    }
+    
+    // 4. 進行特殊的邏輯驗證 (例如日期先後)
+    if (view === 'boarding' && data.checkInDate && data.checkOutDate) {
+        const start = new Date(data.checkInDate);
+        const end = new Date(data.checkOutDate);
+        if (end < start) {
+            errors.checkOutDate = '退房日期不可早於入住日期';
+        }
+    }
+    
+    // 返回錯誤物件
+    return errors;
+};
+
 
             // 初始化表單數據
             const [formData, setFormData] = useState({
@@ -2319,10 +2333,86 @@ chip_status: petData.chip_status || '',
                 </div>
             );
         };
-
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-</div>
+</div> 
+<script>
+    // 檢查瀏覽器是否支援 Service Worker
+    if ('serviceWorker' in navigator) {
+        // 頁面載入後，註冊 Service Worker
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js?v=2').then(reg => {
+                console.log('SW (index) 註冊成功');
+
+                // 檢查是否一進來就有新版本在等待
+                if (reg.waiting) {
+                    console.log('發現等待中的更新 (index)');
+                    showUpdatePrompt(reg.waiting);
+                }
+
+                // 監聽是否有新版本下載完成
+                reg.addEventListener('updatefound', () => {
+                    const newWorker = reg.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('新版本下載完成，準備提示 (index)');
+                            showUpdatePrompt(newWorker);
+                        }
+                    });
+                });
+            });
+        });
+
+        // 監聽 Service Worker 控制權變更事件，自動重整頁面
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                window.location.reload();
+                refreshing = true;
+            }
+        });
+    }
+
+    // 顯示更新提示框的函式
+    function showUpdatePrompt(worker) {
+        // 如果提示框已存在，則不重複顯示
+        if (document.getElementById('pwa-update-banner')) return;
+        
+        console.log('正在顯示更新提示框...');
+        const banner = document.createElement('div');
+        banner.id = 'pwa-update-banner';
+        // 使用 index.html 已定義的 animate-fade-up
+        banner.className = 'fixed bottom-6 right-6 z-[99999] animate-fade-up';
+        banner.innerHTML = `
+            <div style="background: #5C4D42; border: 1px solid #C5A065; box-shadow: 0 10px 40px rgba(0,0,0,0.4);" 
+                 class="p-6 rounded-[28px] flex flex-col gap-4 min-w-[300px]">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center">
+                        <i data-lucide="refresh-cw" class="text-[#C5A065]"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-white font-bold text-sm">系統更新通知</h4>
+                        <p class="text-gray-300 text-[10px]">發現新版本，建議立即更新</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button id="pwa-ignore" class="flex-1 py-2 text-gray-400 text-xs font-bold">稍後</button>
+                    <button id="pwa-update" class="flex-[2] py-2 rounded-xl bg-[#C5A065] text-[#5C4D42] text-xs font-black shadow-lg">立即更新</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(banner);
+        // 確保 Lucide Icons 能夠渲染
+        if (window.lucide) window.lucide.createIcons({ root: banner });
+
+        // 綁定按鈕事件
+        document.getElementById('pwa-update').onclick = () => {
+            worker.postMessage({ type: 'SKIP_WAITING' });
+            banner.remove();
+        };
+        document.getElementById('pwa-ignore').onclick = () => banner.remove();
+    }
+</script>
 </body>
 </html>
