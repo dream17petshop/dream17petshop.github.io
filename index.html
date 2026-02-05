@@ -1537,13 +1537,13 @@
             }, []);
 
 
-// 驗證表單的函數 (修正版：根據頁面動態驗證)
+// --- START: 請用這段完整的程式碼替換掉您舊的 validateForm 函式 ---
 const validateForm = () => {
     const errors = {};
     // 從 formData 中解構出 view 和其餘的 data
     const { view, ...data } = formData;
 
-    // 1. 定義基礎必填欄位 (美容和住宿都需要)
+    // 1. 定義客戶需要填寫的必填欄位
     const requiredFields = {
         owner_name: '請輸入主人姓名',
         is_owner: '請選擇是否為本人',
@@ -1563,10 +1563,10 @@ const validateForm = () => {
         social_traits: '請選擇寵物個性',
         chip_status: '請選擇晶片狀態',
         medical_has: '請選擇是否有過往病史',
-        total_amount: '請輸入消費總金額',
+        // 【已移除】 total_amount: '請輸入消費總金額',  <-- 客戶不用填，所以刪掉
         payment_method: '請選擇付款方式',
         signature: '請完成簽名',
-        lineAdded: '請確認是否已加入官方LINE並傳送貼圖' // 將 lineAdded 改為這裡驗證
+        lineAdded: '請確認是否已加入官方LINE並傳送貼圖'
     };
 
     // 2. 如果是住宿頁面，額外增加住宿專屬的必填欄位
@@ -1576,21 +1576,15 @@ const validateForm = () => {
             checkInDate: '請選擇入住日期',
             checkOutDate: '請選擇退房日期',
             room_type: '請選擇房型',
-            temperament: '請選擇放風模式',
-            deposit: '請輸入訂金',
-            balance: '請輸入尾款'
+            temperament: '請選擇放風模式'
         });
-    } else {
-        // 如果是美容頁面，身分證字號是選填的，所以不用加到 requiredFields
     }
 
     // 3. 遍歷最終的必填欄位列表，進行驗證
     for (const field in requiredFields) {
-        // 特別處理 lineAdded，因為它的值是 boolean
         if (field === 'lineAdded' && !data[field]) {
             errors[field] = requiredFields[field];
         } 
-        // 處理其他欄位
         else if (field !== 'lineAdded' && isEmpty(data[field])) {
             errors[field] = requiredFields[field];
         }
@@ -1608,7 +1602,6 @@ const validateForm = () => {
     // 返回錯誤物件
     return errors;
 };
-
 
             // 初始化表單數據
             const [formData, setFormData] = useState({
@@ -2342,7 +2335,7 @@ chip_status: petData.chip_status || '',
     if ('serviceWorker' in navigator) {
         // 頁面載入後，註冊 Service Worker
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js?v=2').then(reg => {
+            navigator.serviceWorker.register('/sw.js?v=3').then(reg => {
                 console.log('SW (index) 註冊成功');
 
                 // 檢查是否一進來就有新版本在等待
