@@ -334,65 +334,51 @@ const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) =
                 </div>
             );
         };
-        const DashboardCharts = ({ bookings }) => {
-            const barRef = useRef(null);
-            const pieRef = useRef(null);
-            const charts = useRef({});
+const DashboardCharts = ({ bookings }) => {
+    const pieRef = useRef(null);
+    const charts = useRef({});
 
-            useEffect(() => {
-                if (!bookings.length) return;
-                
-                const monthlyRevenue = Array(12).fill(0);
-                const serviceCount = { '住宿': 0, '美容': 0 };
+    useEffect(() => {
+        if (!bookings.length) return;
 
-                bookings.forEach(b => {
-                    const type = b.view === 'boarding' || (b.service_tags && b.service_tags.includes('住宿')) ? '住宿' : '美容';
-                    serviceCount[type]++;
-                    if (b.status !== 'cancelled' && b.created_at) {
-                        const month = new Date(b.created_at).getMonth();
-                        monthlyRevenue[month] += Number(b.total_amount || 0);
-                    }
-                });
+        // ✅ 只保留服務佔比統計
+        const serviceCount = { '住宿': 0, '美容': 0 };
+        bookings.forEach(b => {
+            const type = b.view === 'boarding' || (b.service_tags && b.service_tags.includes('住宿')) ? '住宿' : '美容';
+            serviceCount[type]++;
+        });
 
-                Object.values(charts.current).forEach(c => c.destroy());
+        Object.values(charts.current).forEach(c => c.destroy());
 
-                if (barRef.current) {
-                    charts.current.bar = new Chart(barRef.current, {
-                        type: 'bar',
-                        data: {
-                            labels: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'],
-                            datasets: [{ label: '營收 ($)', data: monthlyRevenue, backgroundColor: '#C5A065', borderRadius: 4 }]
-                        },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                    });
-                }
+        if (pieRef.current) {
+            charts.current.pie = new Chart(pieRef.current, {
+                type: 'doughnut',
+                data: {
+                    labels: ['住宿', '美容'],
+                    datasets: [{
+                        data: [serviceCount['住宿'], serviceCount['美容']],
+                        backgroundColor: ['#5C4D42', '#C5A065'],
+                        borderWidth: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
 
-                if (pieRef.current) {
-                    charts.current.pie = new Chart(pieRef.current, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['住宿', '美容'],
-                            datasets: [{ data: [serviceCount['住宿'], serviceCount['美容']], backgroundColor: ['#5C4D42', '#C5A065'], borderWidth: 0 }]
-                        },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-                    });
-                }
-                return () => Object.values(charts.current).forEach(c => c.destroy());
-            }, [bookings]);
+        return () => Object.values(charts.current).forEach(c => c.destroy());
+    }, [bookings]);
 
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                    <div className="glass-card p-6 lg:col-span-2 h-80">
-                        <h3 className="font-bold text-brand-navy mb-4 flex items-center gap-2"><Icon name="bar-chart-2" size={18}/> 營收趨勢</h3>
-                        <div className="h-60"><canvas ref={barRef}></canvas></div>
-                    </div>
-                    <div className="glass-card p-6 h-80">
-                        <h3 className="font-bold text-brand-navy mb-4 flex items-center gap-2"><Icon name="pie-chart" size={18}/> 服務佔比</h3>
-                        <div className="h-60"><canvas ref={pieRef}></canvas></div>
-                    </div>
-                </div>
-            );
-        };
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="glass-card p-6 h-80">
+                <h3 className="font-bold text-brand-navy mb-4 flex items-center gap-2">
+                    <Icon name="pie-chart" size={18}/> 服務佔比
+                </h3>
+                <div className="h-60"><canvas ref={pieRef}></canvas></div>
+            </div>
+        </div>
+    );
+};
 
         const CalendarView = ({ bookings, onSelect }) => {
             const [date, setDate] = useState(new Date());
@@ -505,7 +491,6 @@ const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) =
                                 phone: b.phone,
                                 email: b.email,
                                 address: b.address,
-                                totalSpent: 0,
                                 lastVisit: b.created_at,
                                 bookingIds: [],
                                 pets: {} // 使用物件存放寵物，方便去重
@@ -532,8 +517,6 @@ const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) =
 
                         // 更新顧客統計
                         if (b.status !== 'cancelled') {
-                            customer.totalSpent += Number(b.total_amount || 0);
-                            pet.totalSpent += Number(b.total_amount || 0);
                         }
                         
                         // 更新最近造訪日期 (顧客與寵物都要更新)
@@ -554,13 +537,13 @@ const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) =
                         }
                     });
 
-                    // 將 pets 物件轉為陣列，並依照消費金額排序顧客
+                    // 將 pets 物件轉為陣列，改為依「最近造訪」排序
                     return Object.values(customerMap)
                         .map(c => ({
                             ...c,
                             pets: Object.values(c.pets) // 將 pets 物件轉為陣列
                         }))
-                        .sort((a, b) => b.totalSpent - a.totalSpent);
+                        .sort((a, b) => new Date(b.lastVisit) - new Date(a.lastVisit));
                 }, [bookings]);
 
                 return (
@@ -595,10 +578,6 @@ const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) =
                                                 <div className="text-xs text-gray-400">{c.phone}</div>
                                             </div>
                                         </div>
-                                        <div className="text-right">
-                                            <div className="text-xs font-bold text-gray-400">累計消費</div>
-                                            <div className="font-black text-brand-gold">${c.totalSpent.toLocaleString()}</div>
-                                        </div>
                                     </div>
                                     
                                     {/* 中部：寵物列表 */}
@@ -615,7 +594,6 @@ const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) =
                                                         <div className="text-[10px] text-gray-400">{p.breed || '未知品種'} • {p.visitCount}次服務</div>
                                                     </div>
                                                 </div>
-                                                <div className="font-bold text-brand-gold text-xs">${p.totalSpent.toLocaleString()}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -728,7 +706,6 @@ const ChangePasswordModal = ({ isOpen, onClose, showToast, currentUserEmail }) =
                 grooming: bookings.filter(b => b.view === 'grooming').length,
                 daycare: bookings.filter(b => b.service_tags && b.service_tags.includes('安親')).length,
                 total: bookings.length,
-                revenue: bookings.reduce((acc, b) => b.status!=='cancelled' ? acc+(Number(b.total_amount)||0) : acc, 0)
             }), [bookings]);
 
             const executeAction = async () => {
@@ -911,7 +888,6 @@ if (!session) return (
                                                         <div className="text-xs font-bold text-brand-navy bg-brand-cream px-3 py-1.5 rounded-lg border border-brand-gold/20">
                                                             {b.view==='boarding'?'🏠 住宿':'✂️ 美容'} • {Array.isArray(b.service_tags) ? b.service_tags[0] + (b.service_tags.length>1?` +${b.service_tags.length-1}`:'') : b.service_tags}
                                                         </div>
-                                                        <div className="text-xl font-black text-brand-gold">${b.total_amount||0}</div>
                                                         <Icon name="chevron-right" className="text-gray-300"/>
                                                     </div>
                                                 </div>
@@ -1035,68 +1011,21 @@ if (!session) return (
                                             </div>
                                         </Section>
 
-<Section title="消費明細" icon="credit-card">
-                                            <div className="bg-brand-gold/10 p-4 rounded-xl border border-brand-gold/30 mb-4 flex justify-between items-end">
-                                                <div className="flex-1 mr-4">
-                                                    <div className="text-xs font-bold text-brand-gold uppercase tracking-wider mb-1">Total Amount</div>
-                                                    <DetailRow 
-                                                        label="總金額" 
-                                                        field="total_amount" 
-                                                        form={editForm} 
-                                                        setForm={setEditForm} 
-                                                        editing={isEditing} 
-                                                        val={selected.total_amount} 
-                                                        type="number" 
-                                                        isPrice={true} 
-                                                        userRole={userRole}
-                                                    />
-                                                </div>
-                                                <div className="text-xs font-bold text-brand-navy bg-white/60 px-3 py-1.5 rounded-lg border border-white shrink-0">
-                                                    {selected.view==='boarding'?'🏠 住宿':'✂️ 美容'}
-                                                </div>
-                                            </div>
-
-                                            {/* --- 新增：訂金與尾款 (可編輯) --- */}
-                                            <div className="grid grid-cols-2 gap-4 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                                                <DetailRow 
-                                                    label="已收訂金" 
-                                                    field="deposit" 
-                                                    form={editForm} 
-                                                    setForm={setEditForm} 
-                                                    editing={isEditing} 
-                                                    val={selected.deposit} 
-                                                    type="number" 
-                                                    isPrice={true} 
-                                                    userRole={userRole}
-                                                />
-                                                <DetailRow 
-                                                    label="剩餘尾款" 
-                                                    field="balance" 
-                                                    form={editForm} 
-                                                    setForm={setEditForm} 
-                                                    editing={isEditing} 
-                                                    val={selected.balance} 
-                                                    type="number" 
-                                                    isPrice={true} 
-                                                    userRole={userRole}
-                                                />
-                                            </div>
-                                            {/* ------------------------------- */}
-
-                                            <DetailRow label="服務項目" field="service_tags" form={editForm} setForm={setEditForm} editing={isEditing} val={Array.isArray(selected.service_tags)?selected.service_tags.join('、'):selected.service_tags} full />
-                                            <div className="grid grid-cols-2 gap-4 mt-4">
-                                                <DetailRow label="付款方式" field="payment_method" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.payment_method} />
-                                                {selected.view === 'boarding' && (
-                                                    <DetailRow label="房型" field="room_type" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.room_type} />
-                                                )}
-                                            </div>
-                                            {selected.view==='boarding' && (
-                                                <div className="grid grid-cols-2 gap-4 mt-2 bg-white p-3 rounded-xl border border-gray-100">
-                                                    <DetailRow label="入住日期" field="check_in_date" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.check_in_date} type="date" />
-                                                    <DetailRow label="退房日期" field="check_out_date" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.check_out_date} type="date" />
-                                                </div>
-                                            )}
-                                        </Section>
+<Section title="服務內容" icon="clipboard-list">
+    <DetailRow label="服務項目" field="service_tags" form={editForm} setForm={setEditForm} editing={isEditing} val={Array.isArray(selected.service_tags)?selected.service_tags.join('、'):selected.service_tags} full />
+    {selected.view === 'boarding' && (
+        <>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+                <DetailRow label="房型" field="room_type" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.room_type} />
+                <DetailRow label="放風模式" field="temperament" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.temperament} />
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-2 bg-white p-3 rounded-xl border border-gray-100">
+                <DetailRow label="入住日期" field="check_in_date" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.check_in_date} type="date" />
+                <DetailRow label="退房日期" field="check_out_date" form={editForm} setForm={setEditForm} editing={isEditing} val={selected.check_out_date} type="date" />
+            </div>
+        </>
+    )}
+</Section>
                                     </div>
 
 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -1202,38 +1131,24 @@ if (!session) return (
                                     </div>
 
                                     {/* 消費項目 */}
-                                    <div className="print-section-title">💰 消費明細與約定</div>
-                                    <div className="print-box">
-                                        <div className="flex justify-between items-center">
-                                            <div className="flex-1">
-                                                <div className="print-label">服務項目</div>
-                                                <div className="print-value text-sm">
-                                                    {selected.view === 'boarding' ? '🏠 住宿/安親' : '✂️ 美容服務'}：
-                                                    {(() => {
-                                                        try {
-                                                            const tags = typeof selected.service_tags === 'string' ? JSON.parse(selected.service_tags) : selected.service_tags;
-                                                            return Array.isArray(tags) ? tags.join('、') : (tags || '無');
-                                                        } catch (e) { return selected.service_tags || '無'; }
-                                                    })()}
-                                                </div>
-                                                {selected.view === 'boarding' && (
-                                                    <div className="text-[10px] font-bold mt-1" style={{ color: '#5C4D42' }}>
-                                                        入住：{selected.check_in_date} ~ {selected.check_out_date} | 房型：{selected.room_type} | 放風：{selected.temperament}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="text-right border-l pl-6">
-                                                <div className="print-label">應付總金額 (付款：{selected.payment_method})</div>
-                                                <div className="text-2xl font-black" style={{ color: '#5C4D42' }}>${selected.total_amount}</div>
-                                            </div>
-                                        </div>
-                                        {selected.view === 'boarding' && (
-                                            <div className="mt-2 pt-2 border-t border-dashed flex justify-end gap-6 text-[11px] font-bold">
-                                                <span>已收訂金：${selected.deposit || 0}</span>
-                                                <span style={{ color: '#E05D5D' }}>剩餘尾款：${selected.balance || 0}</span>
-                                            </div>
-                                        )}
-                                    </div>
+<div className="print-section-title">📝 服務項目與備註</div>
+<div className="print-box">
+    <div className="print-label">服務項目</div>
+    <div className="print-value text-sm">
+        {selected.view === 'boarding' ? '🏠 住宿/安親' : '✂️ 美容服務'}：
+        {(() => {
+            try {
+                const tags = typeof selected.service_tags === 'string' ? JSON.parse(selected.service_tags) : selected.service_tags;
+                return Array.isArray(tags) ? tags.join('、') : (tags || '無');
+            } catch (e) { return selected.service_tags || '無'; }
+        })()}
+    </div>
+    {selected.view === 'boarding' && (
+        <div className="text-[10px] font-bold mt-1" style={{ color: '#5C4D42' }}>
+            入住：{selected.check_in_date} ~ {selected.check_out_date} | 房型：{selected.room_type} | 放風：{selected.temperament}
+        </div>
+    )}
+</div>
 
                                     {/* 高風險條款自動判定 (同步 index.html 邏輯) */}
                                     {(selected.medical_has === '有' || (selected.age_type === 'year' && parseInt(selected.age_value) >= 8)) && (
@@ -1376,5 +1291,6 @@ if (!session) return (
         document.getElementById('pwa-ignore').onclick = () => banner.remove();
     }
 </script>
+
 </body>
 </html>

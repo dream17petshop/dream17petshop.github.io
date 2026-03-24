@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dream17-cache-v2'; // 您可以隨時更改版本號以強制更新
+const CACHE_NAME = 'dream17-cache-v3'; // 您可以隨時更改版本號以強制更新
 const urlsToCache = [
   '/',
   '/index.html',

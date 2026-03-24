@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dream17-admin-cache-v1.2'; // 更新時請修改此版本號
+const CACHE_NAME = 'dream17-admin-cache-v2'; // 更新時請修改此版本號
 const ASSETS_TO_CACHE = [
     '/admin.html',
     '/logo.png',
