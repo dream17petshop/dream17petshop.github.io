@@ -2266,7 +2266,7 @@ chip_status: petData.chip_status || '',
     if ('serviceWorker' in navigator) {
         // 頁面載入後，註冊 Service Worker
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js?v=3').then(reg => {
+            navigator.serviceWorker.register('/sw.js?v=4').then(reg => {
                 console.log('SW (index) 註冊成功');
 
                 // 檢查是否一進來就有新版本在等待
