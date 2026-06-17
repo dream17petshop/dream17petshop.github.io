@@ -42,7 +42,14 @@
                     }
                 }
             }
-        }
+        };
+
+        // 註冊一個專屬的 react-classic 預設集，徹底清除 import 衝突
+        Babel.registerPreset("react-classic", {
+            presets: [
+                [Babel.availablePresets["react"], { runtime: "classic" }]
+            ]
+        });
     </script>
 
     <style>
@@ -153,7 +160,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="text/babel" data-presets="env,react-classic">
         const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
         const SUPABASE_URL = 'https://gyqzsroxdqyzldqvulbs.supabase.co';
@@ -1224,7 +1231,7 @@ if (!session) return (
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw-admin.js').then(reg => {
+            navigator.serviceWorker.register('/sw-admin.js?v=2').then(reg => {
                 console.log('SW 註冊成功');
 
                 // 檢查是否一進來就有版本在等待
