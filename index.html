@@ -163,7 +163,15 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script>
+        Babel.registerPreset("react-classic", {
+            presets: [
+                [Babel.availablePresets["react"], { "runtime": "classic" }]
+            ]
+        });
+    </script>
+
+    <script type="text/babel" data-presets="react-classic">
         const { useState, useEffect, useRef, useMemo, useCallback, memo } = React;
 
         // --- Lucide Icon Component ---
